@@ -1,0 +1,38 @@
+{
+  "name": "Siyuan Share Server",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "web",
+  "workspaceFolder": "/var/www/html",
+  
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bmewburn.vscode-intelephense-client",
+        "xdebug.php-debug"
+      ],
+      "settings": {
+        "php.suggest.basic": true,
+        "php.validate.enable": true
+      }
+    }
+  },
+
+  // Forward the web server port
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Web Server",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // Run commands after the container is created
+  "postCreateCommand": "echo 'Server is starting... Access the application at http://localhost:8080'",
+
+  // Use 'postStartCommand' to keep the container running
+  "postStartCommand": "echo 'Container started successfully!'",
+  
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root
+  "remoteUser": "www-data"
+}
