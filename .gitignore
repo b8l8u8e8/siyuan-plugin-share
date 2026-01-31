@@ -6,7 +6,9 @@ php-site/uploads/
 .docker/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 
 # OS files
