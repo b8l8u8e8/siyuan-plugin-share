@@ -2932,6 +2932,7 @@ const initImageViewer = () => {
     };
 
     const registerCalloutSupport = () => {
+      const MAX_CUSTOM_TITLE_LENGTH = 200;
       const calloutPattern = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*([^\n]*)/i;
       const calloutClassMap = {
         note: "note",
@@ -2981,7 +2982,7 @@ const initImageViewer = () => {
           const match = String(inline.content || "").match(calloutPattern);
           if (!match) return;
           const typeKey = match[1].toLowerCase();
-          const customTitle = (match[2] || "").trim().substring(0, 200);
+          const customTitle = (match[2] || "").trim().substring(0, MAX_CUSTOM_TITLE_LENGTH);
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
           const titleLabel = customTitle ? escapeHtml(customTitle) : meta.label;
