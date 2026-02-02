@@ -2950,6 +2950,20 @@ const initImageViewer = () => {
         info: {label: "Info", icon: "ℹ️"},
       };
 
+      const escapeHtml = (text) => {
+        if (md.utils && md.utils.escapeHtml) {
+          return md.utils.escapeHtml(text);
+        }
+        const map = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, (m) => map[m]);
+      };
+
       md.core.ruler.after("block", "siyuan_callout", (state) => {
         const tokens = state.tokens;
         tokens.forEach((token, index) => {
@@ -2969,9 +2983,7 @@ const initImageViewer = () => {
           const customTitle = (match[2] || "").trim();
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
-          const titleLabel = customTitle 
-            ? (md.utils && md.utils.escapeHtml ? md.utils.escapeHtml(customTitle) : customTitle)
-            : meta.label;
+          const titleLabel = customTitle ? escapeHtml(customTitle) : meta.label;
           token.attrJoin("class", "md-alert");
           token.attrJoin("class", `md-alert--${classKey}`);
           inline.content = inline.content.replace(calloutPattern, "");
