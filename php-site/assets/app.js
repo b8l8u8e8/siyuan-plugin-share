@@ -2969,7 +2969,9 @@ const initImageViewer = () => {
           const customTitle = (match[2] || "").trim();
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
-          const titleLabel = customTitle || meta.label;
+          const titleLabel = customTitle 
+            ? (md.utils && md.utils.escapeHtml ? md.utils.escapeHtml(customTitle) : customTitle)
+            : meta.label;
           token.attrJoin("class", "md-alert");
           token.attrJoin("class", `md-alert--${classKey}`);
           inline.content = inline.content.replace(calloutPattern, "");
