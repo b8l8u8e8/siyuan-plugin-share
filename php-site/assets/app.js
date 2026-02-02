@@ -2932,7 +2932,7 @@ const initImageViewer = () => {
     };
 
     const registerCalloutSupport = () => {
-      const calloutPattern = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*(.*?)$/im;
+      const calloutPattern = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*([^\n]*)/i;
       const calloutClassMap = {
         note: "note",
         tip: "tip",
