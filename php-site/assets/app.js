@@ -2952,7 +2952,7 @@ const initImageViewer = () => {
       };
 
       const escapeHtml = (text) => {
-        if (md.utils && md.utils.escapeHtml) {
+        if (md.utils && typeof md.utils.escapeHtml === 'function') {
           return md.utils.escapeHtml(text);
         }
         const map = {
@@ -2985,7 +2985,7 @@ const initImageViewer = () => {
           const customTitle = (match[2] || "").trim().substring(0, MAX_CUSTOM_TITLE_LENGTH);
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
-          const titleLabel = customTitle ? escapeHtml(customTitle) : meta.label;
+          const titleLabel = escapeHtml(customTitle || meta.label);
           token.attrJoin("class", "md-alert");
           token.attrJoin("class", `md-alert--${classKey}`);
           inline.content = inline.content.replace(calloutPattern, "");
