@@ -2932,7 +2932,7 @@ const initImageViewer = () => {
     };
 
     const registerCalloutSupport = () => {
-      const calloutPattern = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*/i;
+      const calloutPattern = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*(.*?)$/im;
       const calloutClassMap = {
         note: "note",
         tip: "tip",
@@ -2966,8 +2966,10 @@ const initImageViewer = () => {
           const match = String(inline.content || "").match(calloutPattern);
           if (!match) return;
           const typeKey = match[1].toLowerCase();
+          const customTitle = (match[2] || "").trim();
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
+          const titleLabel = customTitle || meta.label;
           token.attrJoin("class", "md-alert");
           token.attrJoin("class", `md-alert--${classKey}`);
           inline.content = inline.content.replace(calloutPattern, "");
@@ -2985,7 +2987,7 @@ const initImageViewer = () => {
             const titleToken = new TitleToken("html_block", "", 0);
             titleToken.content =
               `<div class="md-alert__title"><span class="md-alert__icon">${meta.icon}</span>` +
-              `<span class="md-alert__label">${meta.label}</span></div>\n`;
+              `<span class="md-alert__label">${titleLabel}</span></div>\n`;
             tokens.splice(index + 1, 0, titleToken);
           }
         });
