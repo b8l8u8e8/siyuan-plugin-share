@@ -2985,7 +2985,11 @@ const initImageViewer = () => {
           const customTitle = (match[2] || "").trim().substring(0, MAX_CUSTOM_TITLE_LENGTH);
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
-          const titleLabel = escapeHtml(customTitle || meta.label);
+          // Remove icon emoji from custom title if SiYuan added it (prevents duplicate icons)
+          const cleanTitle = customTitle.startsWith(meta.icon) 
+            ? customTitle.substring(meta.icon.length).trim() 
+            : customTitle;
+          const titleLabel = escapeHtml(cleanTitle || meta.label);
           token.attrJoin("class", "md-alert");
           token.attrJoin("class", `md-alert--${classKey}`);
           inline.content = inline.content.replace(calloutPattern, "");
