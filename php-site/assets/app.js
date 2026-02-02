@@ -2959,9 +2959,10 @@ const initImageViewer = () => {
           '<': '&lt;',
           '>': '&gt;',
           '"': '&quot;',
-          "'": '&#039;'
+          "'": '&#039;',
+          '/': '&#x2F;'
         };
-        return String(text).replace(/[&<>"']/g, (m) => map[m]);
+        return String(text).replace(/[&<>"'/]/g, (m) => map[m]);
       };
 
       md.core.ruler.after("block", "siyuan_callout", (state) => {
@@ -2980,7 +2981,7 @@ const initImageViewer = () => {
           const match = String(inline.content || "").match(calloutPattern);
           if (!match) return;
           const typeKey = match[1].toLowerCase();
-          const customTitle = (match[2] || "").trim();
+          const customTitle = (match[2] || "").trim().substring(0, 200);
           const classKey = calloutClassMap[typeKey] || "note";
           const meta = calloutMetaMap[classKey] || calloutMetaMap.note;
           const titleLabel = customTitle ? escapeHtml(customTitle) : meta.label;
