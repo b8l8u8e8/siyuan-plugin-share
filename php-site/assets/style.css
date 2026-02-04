@@ -2655,6 +2655,16 @@ body.app-side-open {
   color: #fff;
   cursor: pointer;
   z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.iframe-shell:hover .iframe-fullscreen-toggle,
+.iframe-shell:focus-within .iframe-fullscreen-toggle,
+.iframe-shell.is-fullscreen .iframe-fullscreen-toggle {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .iframe-fullscreen-toggle svg {
