@@ -2651,7 +2651,7 @@ body.app-side-open {
   justify-content: center;
   border: none;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.65);
+  background: transparent;
   color: #fff;
   cursor: pointer;
   z-index: 2;
