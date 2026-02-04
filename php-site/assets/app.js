@@ -3935,6 +3935,26 @@ const initImageViewer = () => {
       iframes.forEach((iframe) => applyIframeFit(iframe, mobile));
     };
 
+    const iframeFullscreenWrappers = new Set();
+    let iframeFullscreenListenerBound = false;
+
+    const handleIframeFullscreenChange = () => {
+      iframeFullscreenWrappers.forEach((wrapper) => {
+        if (!wrapper.isConnected) {
+          iframeFullscreenWrappers.delete(wrapper);
+          return;
+        }
+        const button = wrapper.querySelector(".iframe-fullscreen-toggle");
+        if (!button) return;
+        const isFullscreen =
+          document.fullscreenElement === wrapper ||
+          document.fullscreenElement === wrapper.querySelector("iframe");
+        button.setAttribute("aria-label", isFullscreen ? "退出全屏" : "全屏");
+        button.setAttribute("title", isFullscreen ? "退出全屏" : "全屏");
+        wrapper.classList.toggle("is-fullscreen", isFullscreen);
+      });
+    };
+
     const initIframeFullscreen = (container) => {
       const iframes = container.querySelectorAll("iframe");
       if (!iframes.length) return;
@@ -3962,14 +3982,6 @@ const initImageViewer = () => {
           "<path d=\"M7 21H5a2 2 0 0 1-2-2v-2\" />" +
           "<path d=\"M21 17v2a2 2 0 0 1-2 2h-2\" />" +
           "</svg>";
-        const updateState = () => {
-          const isFullscreen =
-            document.fullscreenElement === wrapper ||
-            document.fullscreenElement === iframe;
-          button.setAttribute("aria-label", isFullscreen ? "退出全屏" : "全屏");
-          button.setAttribute("title", isFullscreen ? "退出全屏" : "全屏");
-          wrapper.classList.toggle("is-fullscreen", isFullscreen);
-        };
         button.addEventListener("click", () => {
           if (document.fullscreenElement) {
             document.exitFullscreen().catch(() => {});
@@ -3977,9 +3989,13 @@ const initImageViewer = () => {
           }
           wrapper.requestFullscreen?.().catch(() => {});
         });
-        document.addEventListener("fullscreenchange", updateState);
         wrapper.appendChild(button);
-        updateState();
+        iframeFullscreenWrappers.add(wrapper);
+        if (!iframeFullscreenListenerBound) {
+          document.addEventListener("fullscreenchange", handleIframeFullscreenChange);
+          iframeFullscreenListenerBound = true;
+        }
+        handleIframeFullscreenChange();
       });
     };
 
