@@ -2663,10 +2663,14 @@ body.app-side-open {
 }
 
 .iframe-shell:hover .iframe-fullscreen-toggle,
-.iframe-shell:focus-within .iframe-fullscreen-toggle,
-.iframe-shell.is-fullscreen .iframe-fullscreen-toggle {
+.iframe-shell:focus-within .iframe-fullscreen-toggle {
   opacity: 1;
   pointer-events: auto;
+}
+
+.iframe-shell.is-fullscreen .iframe-fullscreen-toggle {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .iframe-fullscreen-toggle svg {
