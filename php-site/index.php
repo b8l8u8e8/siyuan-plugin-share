@@ -1246,7 +1246,6 @@ function render_page(string $title, string $content, ?array $user = null, string
         echo "<script defer src='{$base}/assets/vendor/markdown-it-abbr.min.js'></script>";
         echo "<script defer src='{$base}/assets/vendor/markdown-it-ins.min.js'></script>";
         echo "<script defer src='{$base}/assets/vendor/markdown-it-container.min.js'></script>";
-        echo "<script defer src='{$base}/assets/vendor/markdown-it-multimd-table.min.js'></script>";
         echo "<script defer src='{$base}/assets/vendor/markdown-it-anchor.min.js'></script>";
         echo "<script defer src='{$base}/assets/vendor/katex.min.js'></script>";
         echo "<script defer src='{$base}/assets/vendor/highlight.min.js'></script>";

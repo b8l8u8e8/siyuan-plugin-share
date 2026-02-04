@@ -2,7 +2,7 @@
 
 ## 0.3.7 进行中 预计2月15日之前发布
 
-- [ ] 修复长表格分享后布局错乱及列数显示异常的问题 [Issues 22](https://github.com/b8l8u8e8/siyuan-plugin-share/issues/22)
+- [x] 修复长表格分享后布局错乱及列数显示异常的问题 [Issues 22](https://github.com/b8l8u8e8/siyuan-plugin-share/issues/22)
 - [ ] 修复笔记本分享页在未加载文档时文档树位置偏上的布局偏移问题
 - [x] 内嵌 IFrame 支持全屏模式，并在右上角提供全屏切换及取消控件。 [Issues 23](https://github.com/b8l8u8e8/siyuan-plugin-share/issues/23)
 - [ ] 待反馈

@@ -3131,7 +3131,6 @@ const initImageViewer = () => {
     usePlugin(window.markdownitSup);
     usePlugin(window.markdownitAbbr);
     usePlugin(window.markdownitIns);
-    usePlugin(window.markdownitMultimdTable);
     usePlugin(window.markdownItAnchor || window.markdownitAnchor, {permalink: false});
     registerCalloutSupport();
 
