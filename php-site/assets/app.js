@@ -3982,10 +3982,19 @@ const initImageViewer = () => {
           "<path d=\"M7 21H5a2 2 0 0 1-2-2v-2\" />" +
           "<path d=\"M21 17v2a2 2 0 0 1-2 2h-2\" />" +
           "</svg>";
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
           if (document.fullscreenElement) {
             document.exitFullscreen().catch(() => {});
             return;
+          }
+          const requestFullscreen = iframe.requestFullscreen?.bind(iframe);
+          if (requestFullscreen) {
+            try {
+              await requestFullscreen();
+              return;
+            } catch (err) {
+              console.warn("iframe fullscreen failed, falling back to wrapper", err);
+            }
           }
           wrapper.requestFullscreen?.().catch(() => {});
         });
