@@ -2625,18 +2625,59 @@ body.app-side-open {
   margin: 12px auto;
 }
 
-.iframe-fit {
+.iframe-shell {
   width: 100%;
   max-width: 100%;
   margin: 12px auto;
   display: block;
+  position: relative;
 }
 
-.iframe-fit iframe {
+.iframe-shell iframe {
   display: block;
   border: 0;
   width: 100%;
   height: auto;
+}
+
+.iframe-fullscreen-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.iframe-fullscreen-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.iframe-shell:fullscreen {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  background: #000;
+  display: flex;
+}
+
+.iframe-shell:fullscreen iframe {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
 }
 
 @media (max-width: 900px) {

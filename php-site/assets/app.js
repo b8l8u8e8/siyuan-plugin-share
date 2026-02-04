@@ -3865,14 +3865,20 @@ const initImageViewer = () => {
       if (mediaWrapper && mediaWrapper.contains(iframe)) {
         mediaWrapper.replaceWith(iframe);
       }
-      const existing = iframe.closest(".iframe-fit");
-      if (existing) return existing;
+      const existingShell = iframe.closest(".iframe-shell");
+      if (existingShell) return existingShell;
+      const existingFit = iframe.closest(".iframe-fit");
+      if (existingFit) {
+        existingFit.classList.add("iframe-shell");
+        return existingFit;
+      }
       const innerParent = iframe.closest(".iframe-fit__inner");
       if (innerParent && innerParent.parentElement?.classList.contains("iframe-fit")) {
+        innerParent.parentElement.classList.add("iframe-shell");
         return innerParent.parentElement;
       }
       const wrapper = document.createElement("div");
-      wrapper.className = "iframe-fit";
+      wrapper.className = "iframe-shell";
       const parent = iframe.parentNode;
       if (!parent) return null;
       parent.insertBefore(wrapper, iframe);
@@ -3892,12 +3898,10 @@ const initImageViewer = () => {
     const applyIframeFit = (iframe, forceMobile) => {
       if (!iframe || iframe.closest(".md-diagram, .mermaid")) return;
       const isMobile = typeof forceMobile === "boolean" ? forceMobile : isMobileViewport();
+      const wrapper = ensureIframeWrapper(iframe);
+      if (!wrapper) return;
       if (!isMobile) {
-        const wrapper = iframe.closest(".iframe-fit");
-        if (wrapper && wrapper.parentNode) {
-          wrapper.parentNode.insertBefore(iframe, wrapper);
-          wrapper.remove();
-        }
+        wrapper.classList.remove("iframe-fit");
         iframe.style.width = "";
         iframe.style.height = "";
         iframe.style.maxWidth = "";
@@ -3910,8 +3914,7 @@ const initImageViewer = () => {
         return;
       }
 
-      const wrapper = ensureIframeWrapper(iframe);
-      if (!wrapper) return;
+      wrapper.classList.add("iframe-fit");
       const ratio = getIframeRatio(iframe);
       wrapper.style.setProperty("--iframe-ratio", `${ratio}%`);
       iframe.style.maxWidth = "100%";
@@ -3930,6 +3933,51 @@ const initImageViewer = () => {
       if (!iframes.length) return;
       const mobile = isMobileViewport();
       iframes.forEach((iframe) => applyIframeFit(iframe, mobile));
+    };
+
+    const initIframeFullscreen = (container) => {
+      const iframes = container.querySelectorAll("iframe");
+      if (!iframes.length) return;
+      iframes.forEach((iframe) => {
+        const wrapper = ensureIframeWrapper(iframe);
+        if (!wrapper) return;
+        if (!iframe.hasAttribute("allowfullscreen")) {
+          iframe.setAttribute("allowfullscreen", "");
+        }
+        const allowValue = iframe.getAttribute("allow") || "";
+        if (!allowValue.includes("fullscreen")) {
+          const nextValue = allowValue ? `${allowValue}; fullscreen` : "fullscreen";
+          iframe.setAttribute("allow", nextValue);
+        }
+        if (wrapper.querySelector(".iframe-fullscreen-toggle")) return;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "iframe-fullscreen-toggle";
+        button.setAttribute("aria-label", "全屏");
+        button.setAttribute("title", "全屏");
+        button.innerHTML =
+          "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\">" +
+          "<path d=\"M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 2h-2v2h4v-4h-2v2z\" fill=\"currentColor\"></path>" +
+          "</svg>";
+        const updateState = () => {
+          const isFullscreen =
+            document.fullscreenElement === wrapper ||
+            document.fullscreenElement === iframe;
+          button.setAttribute("aria-label", isFullscreen ? "退出全屏" : "全屏");
+          button.setAttribute("title", isFullscreen ? "退出全屏" : "全屏");
+          wrapper.classList.toggle("is-fullscreen", isFullscreen);
+        };
+        button.addEventListener("click", () => {
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+            return;
+          }
+          wrapper.requestFullscreen?.().catch(() => {});
+        });
+        document.addEventListener("fullscreenchange", updateState);
+        wrapper.appendChild(button);
+        updateState();
+      });
     };
 
     const fitMarkdownVideos = (container) => {
@@ -3992,6 +4040,7 @@ const initImageViewer = () => {
         decorateCodeBlocks(target);
         wrapScrollableMedia(target);
         fitMarkdownIframes(target);
+        initIframeFullscreen(target);
         fitMarkdownVideos(target);
       });
   };
