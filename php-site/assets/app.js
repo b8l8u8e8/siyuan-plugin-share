@@ -3923,8 +3923,8 @@ const initImageViewer = () => {
       iframe.style.aspectRatio = "auto";
       iframe.style.width = "100%";
       iframe.style.height = "100%";
-      iframe.style.overflow = "hidden";
-      iframe.setAttribute("scrolling", "no");
+      iframe.style.overflow = "auto";
+      iframe.removeAttribute("scrolling");
       iframe.setAttribute("data-sps-iframe-mobile", "1");
     };
 
