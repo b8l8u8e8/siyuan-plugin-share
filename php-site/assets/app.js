@@ -3937,6 +3937,86 @@ const initImageViewer = () => {
 
     const iframeFullscreenWrappers = new Set();
     let iframeFullscreenListenerBound = false;
+    let iframeFullscreenResizeBound = false;
+
+    const getViewportSize = () => {
+      const docEl = document.documentElement;
+      const widthCandidates = [
+        window.innerWidth,
+        docEl?.clientWidth,
+        window.visualViewport?.width,
+      ];
+      const heightCandidates = [
+        window.innerHeight,
+        docEl?.clientHeight,
+        window.visualViewport?.height,
+      ];
+      const width = Math.max(...widthCandidates.filter((value) => Number.isFinite(value)));
+      const height = Math.max(...heightCandidates.filter((value) => Number.isFinite(value)));
+      return {
+        width: Number.isFinite(width) && width > 0 ? width : null,
+        height: Number.isFinite(height) && height > 0 ? height : null,
+      };
+    };
+
+    const resetIframeFullscreenSizing = (iframe) => {
+      if (!iframe) return;
+      if (iframe.dataset.spsIframeMobile === "1") {
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        iframe.style.maxWidth = "100%";
+        iframe.style.maxHeight = "none";
+      } else {
+        iframe.style.width = "";
+        iframe.style.height = "";
+        iframe.style.maxWidth = "";
+        iframe.style.maxHeight = "";
+      }
+      iframe.style.removeProperty("--sps-iframe-fullscreen-width");
+      iframe.style.removeProperty("--sps-iframe-fullscreen-height");
+      iframe.removeAttribute("data-sps-iframe-fullscreen");
+    };
+
+    const applyIframeFullscreenSizing = (wrapper, iframe, isFullscreen) => {
+      if (!iframe) return;
+      if (!isFullscreen) {
+        if (wrapper) {
+          wrapper.style.removeProperty("--sps-iframe-fullscreen-width");
+          wrapper.style.removeProperty("--sps-iframe-fullscreen-height");
+        }
+        resetIframeFullscreenSizing(iframe);
+        return;
+      }
+      const {width, height} = getViewportSize();
+      const widthValue = width ? `${width}px` : "100vw";
+      const heightValue = height ? `${height}px` : "100vh";
+      if (wrapper) {
+        wrapper.style.setProperty("--sps-iframe-fullscreen-width", widthValue);
+        wrapper.style.setProperty("--sps-iframe-fullscreen-height", heightValue);
+      }
+      iframe.style.setProperty("--sps-iframe-fullscreen-width", widthValue);
+      iframe.style.setProperty("--sps-iframe-fullscreen-height", heightValue);
+      iframe.dataset.spsIframeFullscreen = "1";
+      iframe.style.width = "var(--sps-iframe-fullscreen-width)";
+      iframe.style.height = "var(--sps-iframe-fullscreen-height)";
+      iframe.style.maxWidth = "none";
+      iframe.style.maxHeight = "none";
+    };
+
+    const updateIframeFullscreenSizing = () => {
+      iframeFullscreenWrappers.forEach((wrapper) => {
+        if (!wrapper.isConnected) {
+          iframeFullscreenWrappers.delete(wrapper);
+          return;
+        }
+        const iframe = wrapper.querySelector("iframe");
+        if (!iframe) return;
+        const isFullscreen =
+          document.fullscreenElement === wrapper ||
+          document.fullscreenElement === iframe;
+        applyIframeFullscreenSizing(wrapper, iframe, isFullscreen);
+      });
+    };
 
     const handleIframeFullscreenChange = () => {
       iframeFullscreenWrappers.forEach((wrapper) => {
@@ -3952,6 +4032,7 @@ const initImageViewer = () => {
         button.setAttribute("aria-label", isFullscreen ? "退出全屏" : "全屏");
         button.setAttribute("title", isFullscreen ? "退出全屏" : "全屏");
         wrapper.classList.toggle("is-fullscreen", isFullscreen);
+        applyIframeFullscreenSizing(wrapper, wrapper.querySelector("iframe"), isFullscreen);
       });
     };
 
@@ -4003,6 +4084,18 @@ const initImageViewer = () => {
         if (!iframeFullscreenListenerBound) {
           document.addEventListener("fullscreenchange", handleIframeFullscreenChange);
           iframeFullscreenListenerBound = true;
+        }
+        if (!iframeFullscreenResizeBound) {
+          window.addEventListener("resize", updateIframeFullscreenSizing, {passive: true});
+          window.addEventListener("orientationchange", updateIframeFullscreenSizing, {
+            passive: true,
+          });
+          if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", updateIframeFullscreenSizing, {
+              passive: true,
+            });
+          }
+          iframeFullscreenResizeBound = true;
         }
         handleIframeFullscreenChange();
       });

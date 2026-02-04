@@ -2680,16 +2680,16 @@ body.app-side-open {
 
 .iframe-shell:fullscreen {
   margin: 0;
-  width: 100vw;
-  height: 100vh;
+  width: var(--sps-iframe-fullscreen-width, 100vw);
+  height: var(--sps-iframe-fullscreen-height, 100vh);
   max-width: none;
   background: #000;
   display: flex;
 }
 
 .iframe-shell:fullscreen iframe {
-  width: 100% !important;
-  height: 100% !important;
+  width: var(--sps-iframe-fullscreen-width, 100%) !important;
+  height: var(--sps-iframe-fullscreen-height, 100%) !important;
   max-width: none !important;
   max-height: none !important;
   min-height: 0 !important;
