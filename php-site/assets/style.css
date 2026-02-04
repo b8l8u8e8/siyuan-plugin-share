@@ -2642,8 +2642,8 @@ body.app-side-open {
 
 .iframe-fullscreen-toggle {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 12px;
   width: 32px;
   height: 32px;
   display: inline-flex;
@@ -2651,13 +2651,15 @@ body.app-side-open {
   justify-content: center;
   border: none;
   border-radius: 6px;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.35);
   color: #fff;
   cursor: pointer;
   z-index: 2;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(2px);
 }
 
 .iframe-shell:hover .iframe-fullscreen-toggle,
