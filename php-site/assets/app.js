@@ -3865,6 +3865,9 @@ const initImageViewer = () => {
         if (el.closest(".md-diagram, .mermaid, .code-block, .media-scroll")) {
           return;
         }
+        if (el.closest(".katex")) {
+          return;
+        }
         const tag = el.tagName.toLowerCase();
         if (tag === "img") return;
         if (tag === "iframe") return;

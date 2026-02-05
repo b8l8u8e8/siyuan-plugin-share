@@ -2580,10 +2580,21 @@ body.app-side-open {
 }
 
 .markdown-body img,
-.markdown-body svg,
 .markdown-body video {
   max-width: 100%;
   height: auto;
+}
+
+.markdown-body svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-body .katex svg {
+  height: inherit;
+  width: 100%;
+  max-width: none;
+  max-height: none;
 }
 
 @media (max-width: 900px) {
