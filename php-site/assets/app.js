@@ -13,6 +13,12 @@
   });
 
   const scheduleIdle = (task, {timeout = 1200} = {}) => {
+    const hidden =
+      typeof document !== "undefined" &&
+      (document.hidden || document.visibilityState === "hidden");
+    if (hidden) {
+      return window.setTimeout(task, 0);
+    }
     if (typeof window.requestIdleCallback === "function") {
       return window.requestIdleCallback(task, {timeout});
     }
@@ -24,6 +30,9 @@
   let shareNavReady = false;
   let commentEditorsGlobalBound = false;
   let shareDynamicToken = 0;
+  let markdownInitRetryTimer = null;
+  let markdownInitRetryCount = 0;
+  const markdownInitRetryLimit = 40;
 
   const initAnnouncementModal = () => {
     const modal = document.querySelector("[data-announcement-modal]");
@@ -2895,13 +2904,29 @@ const initImageViewer = () => {
     });
   };
 
+  const scheduleMarkdownRetry = () => {
+    if (markdownInitRetryTimer) return;
+    if (markdownInitRetryCount >= markdownInitRetryLimit) return;
+    markdownInitRetryCount += 1;
+    markdownInitRetryTimer = window.setTimeout(() => {
+      markdownInitRetryTimer = null;
+      initMarkdown();
+    }, 120);
+  };
+
   const initMarkdown = () => {
     if (
       typeof window.markdownit !== "function" ||
       !window.markdownit.prototype ||
       typeof window.markdownit.prototype.render !== "function"
     ) {
+      scheduleMarkdownRetry();
       return;
+    }
+    markdownInitRetryCount = 0;
+    if (markdownInitRetryTimer) {
+      clearTimeout(markdownInitRetryTimer);
+      markdownInitRetryTimer = null;
     }
 
     const md = window.markdownit({
