@@ -161,6 +161,12 @@ docker-compose -f docker-compose.nas.yml logs -f
 #管理员账号密码默认为admin/123456 登录后尽快修改密码
 ```
 
+> ⚠️ **NAS 用户特别注意**:
+> - 第 2 步中创建的 `php-site/config.php` 文件位置非常重要,必须在项目根目录的 `php-site/` 文件夹下
+> - 群晖 NAS 用户: 确认路径类似 `/volume1/docker/siyuan-plugin-share/php-site/config.php`
+> - QNAP 用户: 确认路径类似 `/share/Container/siyuan-plugin-share/php-site/config.php`
+> - 如果启动后报错找不到 config.php,请检查"故障排查"部分
+
 ## 更新应用
 
 更新前建议先备份（见“数据管理”里的备份脚本/命令），避免意外。
@@ -189,6 +195,52 @@ docker-compose -f docker-compose.nas.yml logs -f
 > 说明：使用 named volumes（storage-data / uploads-data）时，更新不会影响已有数据。
 
 ## 故障排查
+
+### config.php 文件找不到
+
+如果遇到类似 `Failed to open stream: No such file or directory` 错误提示找不到 `config.php`:
+
+**症状**: 错误日志显示 `require(/var/www/html/...config.php): Failed to open stream`
+
+**原因**: config.php 文件不存在或路径配置不正确
+
+**解决方案**:
+
+1. **确认文件位置**: config.php 必须放在项目根目录的 `php-site/` 文件夹中
+
+```bash
+# 进入项目目录 (根据你的 NAS 实际路径调整)
+cd /volume1/docker/siyuan-plugin-share  # 群晖 NAS
+# 或
+cd /share/Container/siyuan-plugin-share  # QNAP
+
+# 检查文件是否存在
+ls -la php-site/config.php
+
+# 如果不存在,从示例文件复制 (必须复制)
+cp php-site/config.example.php php-site/config.php
+```
+
+2. **确认 docker-compose 卷映射**: 检查卷映射配置
+
+```yaml
+# docker-compose.nas.yml 中的正确配置
+volumes:
+  - ./php-site/config.php:/var/www/html/config.php:ro
+```
+
+3. **重启容器**: 
+
+```bash
+docker-compose -f docker-compose.nas.yml down
+docker-compose -f docker-compose.nas.yml up -d
+```
+
+4. **验证挂载**: 
+
+```bash
+docker-compose -f docker-compose.nas.yml exec web ls -la /var/www/html/config.php
+```
 
 ### 如果还是有权限问题
 

@@ -13,6 +13,9 @@ services:
       - ./php-site/storage:/var/www/html/storage
       - ./php-site/uploads:/var/www/html/uploads
       # 配置文件 (如果存在)
+      # ⚠️ 注意: config.php 必须在项目根目录的 php-site/ 文件夹下
+      # 正确路径: ./php-site/config.php
+      # 错误示例: /var/www/html/vol2/1000/docker/siyuan-share-web/php-site/config.php
       - ./php-site/config.php:/var/www/html/config.php:ro
     environment:
       - TZ=Asia/Shanghai

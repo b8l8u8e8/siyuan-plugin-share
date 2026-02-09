@@ -13,6 +13,8 @@ services:
       - storage-data:/var/www/html/storage
       - uploads-data:/var/www/html/uploads
       # 配置文件仍然从主机挂载 (只读)
+      # ⚠️ 注意: config.php 必须在项目根目录的 php-site/ 文件夹下
+      # 正确路径: ./php-site/config.php (相对于 docker-compose.nas.yml 所在目录)
       - ./php-site/config.php:/var/www/html/config.php:ro
     environment:
       - TZ=Asia/Shanghai

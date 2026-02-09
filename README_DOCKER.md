@@ -41,6 +41,11 @@ cd /Users/quxiaopang/siyuan-plugin-share
 cp php-site/config.example.php php-site/config.php
 ```
 
+> ⚠️ **重要提示**: 
+> - `config.php` 文件必须放在 `php-site/` 目录下
+> - 路径必须是 `php-site/config.php`,不能是其他位置
+> - 如果文件不存在,启动后会报错 `Failed to open stream: No such file or directory`
+
 编辑 `php-site/config.php` 根据需要调整配置(可不改):
 
 ```php
@@ -218,6 +223,50 @@ docker inspect siyuan-share-web | grep -A 10 Health
 ```bash
 sudo chown -R $(id -u):$(id -g) php-site/storage php-site/uploads
 chmod -R 775 php-site/storage php-site/uploads
+```
+
+### config.php 文件找不到
+
+如果遇到类似 `Failed to open stream: No such file or directory` 错误提示找不到 `config.php`:
+
+**症状**: 错误日志显示 `require(/var/www/html/vol2/1000/docker/siyuan-share-web/php-site/config.php): Failed to open stream`
+
+**原因**: Docker 卷映射配置不正确或 config.php 文件位置错误
+
+**解决方案**:
+
+1. **确认文件位置**: config.php 必须放在项目根目录的 `php-site/` 文件夹中
+
+```bash
+# 检查文件是否存在
+ls -la php-site/config.php
+
+# 如果不存在,从示例文件复制
+cp php-site/config.example.php php-site/config.php
+```
+
+2. **确认 docker-compose.yml 卷映射**: 检查卷映射配置是否正确
+
+```yaml
+volumes:
+  # 必须使用相对路径 ./php-site/config.php
+  - ./php-site/config.php:/var/www/html/config.php:ro
+  # ❌ 错误: 不要使用绝对路径或嵌套路径
+  # - /var/www/html/vol2/1000/docker/siyuan-share-web/php-site/config.php:/var/www/html/config.php
+```
+
+3. **重启容器**: 修改配置后重启容器
+
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+4. **验证挂载**: 检查容器内文件是否正确挂载
+
+```bash
+docker-compose exec web ls -la /var/www/html/config.php
+docker-compose exec web cat /var/www/html/config.php
 ```
 
 ### 端口已被占用
