@@ -2,7 +2,7 @@
   "name": "siyuan-plugin-share",
   "author": "取舍",
   "url": "https://github.com/b8l8u8e8/siyuan-plugin-share",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "minAppVersion": "2.9.0",
   "disabledInPublish": true,
   "backends": [

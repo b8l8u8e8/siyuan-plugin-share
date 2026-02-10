@@ -416,6 +416,36 @@
       const body =
         container.querySelector(".share-toc-body") || container;
       const scrollBox = body;
+      const hideFootnotesForToc =
+        container.getAttribute("data-sps-hide-footnotes") === "1" ||
+        document.body.classList.contains("sps-footnote-tab");
+      const FOOTNOTE_ROOT_SELECTOR = ".footnotes > ol > li, .markdown-footnotes > ol > li";
+      const parseFootnoteIndex = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return 0;
+        const match = raw.match(/^#?fn(?:ref)?[:\-_]?(\d+)/i);
+        if (match) return Number(match[1]) || 0;
+        const num = Number(raw);
+        return Number.isFinite(num) ? num : 0;
+      };
+      const resolveFootnoteIndex = (item) => {
+        if (!item) return 0;
+        let index = parseFootnoteIndex(
+          item.dataset.footnoteIndex || item.getAttribute("value") || item.id || "",
+        );
+        if (!index) {
+          const list = item.closest?.("ol");
+          if (list) {
+            const siblings = Array.from(list.children || []);
+            const pos = siblings.indexOf(item);
+            if (pos >= 0) index = pos + 1;
+          }
+        }
+        if (index) {
+          item.dataset.footnoteIndex = String(index);
+        }
+        return index;
+      };
       const ensureVisible = (element) => {
         if (!scrollBox || !element) return;
         const box = scrollBox.getBoundingClientRect();
@@ -455,16 +485,10 @@
       const footnoteHeadings = [];
       allHeadings.forEach((heading) => {
         if (isFootnoteHeading(heading, separator)) {
+          if (hideFootnotesForToc) return;
           footnoteHeadings.push(heading);
-          const item = heading.closest(
-            ".footnotes li[id], .markdown-footnotes li[id]",
-          );
-          const list = item?.closest?.("ol");
-          let index = 0;
-          if (item && list) {
-            const siblings = Array.from(list.children || []);
-            index = siblings.indexOf(item) + 1;
-          }
+          const item = heading.closest(FOOTNOTE_ROOT_SELECTOR);
+          const index = resolveFootnoteIndex(item);
           let backref = "";
           const backrefEl = item?.querySelector?.(
             ".footnote-backref, [data-footnote-backref], a[href^=\"#fnref\"]",
@@ -702,15 +726,6 @@
         }
       });
 
-      const parseFootnoteIndex = (value) => {
-        const raw = String(value || "").trim();
-        if (!raw) return 0;
-        const match = raw.match(/^#?fn(?:ref)?[:\-_]?(\d+)/i);
-        if (match) return Number(match[1]) || 0;
-        const num = Number(raw);
-        return Number.isFinite(num) ? num : 0;
-      };
-
       const isFnRefId = (value) => /^fnref[:\-_]?\d+/i.test(String(value || ""));
 
       const footnoteIndexToLink = new Map();
@@ -722,14 +737,13 @@
       });
 
       const footnoteItems = [];
-      if (target) {
+      if (target && !hideFootnotesForToc) {
         const candidates = Array.from(
-          target.querySelectorAll(".footnotes li[id], .markdown-footnotes li[id]"),
+          target.querySelectorAll(FOOTNOTE_ROOT_SELECTOR),
         );
-        candidates.forEach((item, idx) => {
-          let index = parseFootnoteIndex(item.dataset.footnoteIndex || item.id);
-          if (!index) index = idx + 1;
-          item.dataset.footnoteIndex = String(index);
+        candidates.forEach((item) => {
+          const index = resolveFootnoteIndex(item);
+          if (!index) return;
           footnoteItems.push(item);
         });
       }
@@ -753,12 +767,11 @@
       });
 
       const findFootnoteIndexForElement = (element) => {
+        if (hideFootnotesForToc) return 0;
         if (!element) return 0;
-        const item = element.closest?.(
-          ".footnotes li[id], .markdown-footnotes li[id]",
-        );
+        const item = element.closest?.(FOOTNOTE_ROOT_SELECTOR);
         if (item) {
-          return parseFootnoteIndex(item.dataset.footnoteIndex || item.id);
+          return resolveFootnoteIndex(item);
         }
         const id = element.id || "";
         if (id && isFnRefId(id)) {
@@ -1043,21 +1056,509 @@
       .forEach((node) => node.remove());
   };
 
+  const syncRichMediaFromSource = (sourceRoot, cloneRoot) => {
+    if (!sourceRoot || !cloneRoot) return;
+
+    cloneRoot.querySelectorAll(".iframe-fullscreen-toggle").forEach((button) => {
+      button.remove();
+    });
+    cloneRoot.querySelectorAll("[data-sps-iframe-fs-bound]").forEach((node) => {
+      node.removeAttribute("data-sps-iframe-fs-bound");
+    });
+    cloneRoot.querySelectorAll(".md-echarts").forEach((chartEl) => {
+      chartEl.removeAttribute("data-sps-echarts-inited");
+    });
+    cloneRoot.querySelectorAll(".sps-footnote-action").forEach((button) => {
+      button.remove();
+    });
+    cloneRoot
+      .querySelectorAll("[data-sps-footnote-preview]")
+      .forEach((node) => node.removeAttribute("data-sps-footnote-preview"));
+
+    const sourceCharts = Array.from(
+      sourceRoot.querySelectorAll(".md-diagram--echarts"),
+    );
+    const cloneCharts = Array.from(
+      cloneRoot.querySelectorAll(".md-diagram--echarts"),
+    );
+    sourceCharts.forEach((sourceChart, idx) => {
+      const cloneChart = cloneCharts[idx];
+      if (!cloneChart) return;
+      const raw = sourceChart.getAttribute("data-sps-echarts-source") || "";
+      if (raw && !cloneChart.getAttribute("data-sps-echarts-source")) {
+        cloneChart.setAttribute("data-sps-echarts-source", raw);
+      }
+    });
+
+    const sourceCanvases = Array.from(sourceRoot.querySelectorAll("canvas"));
+    const cloneCanvases = Array.from(cloneRoot.querySelectorAll("canvas"));
+    const count = Math.min(sourceCanvases.length, cloneCanvases.length);
+    for (let i = 0; i < count; i += 1) {
+      const sourceCanvas = sourceCanvases[i];
+      const cloneCanvas = cloneCanvases[i];
+      if (!sourceCanvas || !cloneCanvas) continue;
+      let dataUrl = "";
+      try {
+        dataUrl = sourceCanvas.toDataURL("image/png");
+      } catch {
+        dataUrl = "";
+      }
+      if (!dataUrl || dataUrl.length < 32) continue;
+      const img = document.createElement("img");
+      img.src = dataUrl;
+      img.alt =
+        cloneCanvas.getAttribute("aria-label") ||
+        sourceCanvas.getAttribute("aria-label") ||
+        "diagram";
+      const className = cloneCanvas.getAttribute("class") || "";
+      if (className) img.setAttribute("class", className);
+      const width = cloneCanvas.getAttribute("width") || sourceCanvas.getAttribute("width");
+      const height = cloneCanvas.getAttribute("height") || sourceCanvas.getAttribute("height");
+      if (width) img.setAttribute("width", width);
+      if (height) img.setAttribute("height", height);
+      const styleText =
+        cloneCanvas.getAttribute("style") || sourceCanvas.getAttribute("style") || "";
+      if (styleText) img.setAttribute("style", styleText);
+      cloneCanvas.replaceWith(img);
+    }
+  };
+
   const buildFootnoteContentHtml = (item) => {
     if (!item) return "";
     const clone = item.cloneNode(true);
+    syncRichMediaFromSource(item, clone);
     stripFootnoteExtras(clone);
     clone.removeAttribute("id");
     clone.removeAttribute("data-footnote-index");
     return clone.innerHTML;
   };
 
+  const getFootnoteAnchorPointFromEvent = (event) => {
+    if (!event) return null;
+    const touch = event.touches?.[0] || event.changedTouches?.[0] || null;
+    const rawX = touch ? touch.clientX : event.clientX;
+    const rawY = touch ? touch.clientY : event.clientY;
+    const x = Number(rawX);
+    const y = Number(rawY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    if (x <= 0 && y <= 0 && Number(event.detail || 0) === 0) {
+      return null;
+    }
+    return {x, y};
+  };
+
+  const getFootnoteAnchorPointFromElement = (element) => {
+    if (!element || typeof element.getBoundingClientRect !== "function") return null;
+    const rect = element.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  };
+
+  const resolveFootnoteAnchorPoint = (event, element) =>
+    getFootnoteAnchorPointFromEvent(event) || getFootnoteAnchorPointFromElement(element);
+
+  const getShareAssetsBaseUrl = () => {
+    const source =
+      document.querySelector("script[src*='/assets/app.js']")?.src ||
+      document.querySelector("link[href*='/assets/style.css']")?.href ||
+      "";
+    if (!source) return "";
+    try {
+      return new URL(".", source).href;
+    } catch {
+      return "";
+    }
+  };
+
+  const resolveShareAssetUrl = (selector, relativePath, baseUrl) => {
+    const node = document.querySelector(selector);
+    const direct = node?.href || node?.src || "";
+    if (direct) return direct;
+    if (!baseUrl) return "";
+    try {
+      return new URL(relativePath, baseUrl).href;
+    } catch {
+      return "";
+    }
+  };
+
+  const getShareMarkdownScriptEntries = (assetsBaseUrl) => {
+    const entries = [
+      {
+        selector: "script[src*='/assets/app.js']",
+        path: "app.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it.min.js']",
+        path: "vendor/markdown-it.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-task-lists.min.js']",
+        path: "vendor/markdown-it-task-lists.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-emoji.min.js']",
+        path: "vendor/markdown-it-emoji.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-footnote.min.js']",
+        path: "vendor/markdown-it-footnote.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-deflist.min.js']",
+        path: "vendor/markdown-it-deflist.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-mark.min.js']",
+        path: "vendor/markdown-it-mark.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-sub.min.js']",
+        path: "vendor/markdown-it-sub.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-sup.min.js']",
+        path: "vendor/markdown-it-sup.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-abbr.min.js']",
+        path: "vendor/markdown-it-abbr.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-ins.min.js']",
+        path: "vendor/markdown-it-ins.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-container.min.js']",
+        path: "vendor/markdown-it-container.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/markdown-it-anchor.min.js']",
+        path: "vendor/markdown-it-anchor.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/katex.min.js']",
+        path: "vendor/katex.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/highlight.min.js']",
+        path: "vendor/highlight.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/mermaid.min.js']",
+        path: "vendor/mermaid.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/pako.min.js']",
+        path: "vendor/pako.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/echarts.min.js']",
+        path: "vendor/echarts.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/abcjs-basic-min.js']",
+        path: "vendor/abcjs-basic-min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/raphael.min.js']",
+        path: "vendor/raphael.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/flowchart.min.js']",
+        path: "vendor/flowchart.min.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/viz.js']",
+        path: "vendor/viz.js",
+        readyEvent: false,
+      },
+      {
+        selector: "script[src*='/assets/vendor/full.render.js']",
+        path: "vendor/full.render.js",
+        readyEvent: true,
+      },
+    ];
+    return entries
+      .map((entry) => ({
+        ...entry,
+        url: resolveShareAssetUrl(entry.selector, entry.path, assetsBaseUrl),
+      }))
+      .filter((entry) => Boolean(entry.url));
+  };
+
+  const collectFootnoteTargetIds = (root) => {
+    if (!root) return [];
+    const ids = new Set();
+    root
+      .querySelectorAll("a[href^=\"#fn\"]")
+      .forEach((anchor) => {
+        const href = String(anchor.getAttribute("href") || "");
+        if (!href || href.startsWith("#fnref")) return;
+        const id = href.replace(/^#/, "").trim();
+        if (id) ids.add(id);
+      });
+    return Array.from(ids);
+  };
+
+  const resolveFootnoteItemByTargetId = (targetId) => {
+    if (!targetId) return null;
+    const direct = document.getElementById(targetId);
+    if (direct) {
+      return (
+        direct.closest(".footnotes li, .markdown-footnotes li") ||
+        direct.closest("li[id]") ||
+        null
+      );
+    }
+    return null;
+  };
+
+  const bindLocalFnrefAnchors = (root, fnrefByIndex, usedIds) => {
+    if (!root) return;
+    root
+      .querySelectorAll("a[href^=\"#fn\"]")
+      .forEach((anchor) => {
+        const href = String(anchor.getAttribute("href") || "");
+        if (!href || href.startsWith("#fnref")) return;
+        const index = parseFootnoteIndexLoose(href);
+        if (!index || fnrefByIndex.has(index)) return;
+        const existingId = String(anchor.getAttribute("id") || "").trim();
+        if (existingId) {
+          usedIds.add(existingId);
+          fnrefByIndex.set(index, `#${existingId}`);
+          return;
+        }
+        let id = `fnref${index}`;
+        if (usedIds.has(id)) {
+          let suffix = 1;
+          while (usedIds.has(`${id}:${suffix}`)) {
+            suffix += 1;
+          }
+          id = `${id}:${suffix}`;
+        }
+        anchor.setAttribute("id", id);
+        usedIds.add(id);
+        fnrefByIndex.set(index, `#${id}`);
+      });
+  };
+
+  const ensureFallbackFnrefAnchor = (
+    index,
+    fallbackHost,
+    fnrefByIndex,
+    usedIds,
+  ) => {
+    if (!index || fnrefByIndex.has(index) || !fallbackHost) return "";
+    let id = `fnref${index}`;
+    if (usedIds.has(id)) {
+      let suffix = 1;
+      while (usedIds.has(`${id}:${suffix}`)) {
+        suffix += 1;
+      }
+      id = `${id}:${suffix}`;
+    }
+    const marker = document.createElement("span");
+    marker.setAttribute("id", id);
+    marker.setAttribute("data-sps-fnref-fallback", String(index));
+    marker.setAttribute("aria-hidden", "true");
+    marker.style.cssText = "display:block;height:0;overflow:hidden;";
+    fallbackHost.appendChild(marker);
+    usedIds.add(id);
+    const href = `#${id}`;
+    fnrefByIndex.set(index, href);
+    return href;
+  };
+
+  const rewriteFootnoteBackrefs = (item, backrefHref) => {
+    if (!item || !backrefHref) return;
+    const backrefNodes = Array.from(
+      item.querySelectorAll(
+        ".footnote-backref, [data-footnote-backref], a[href^=\"#fnref\"]",
+      ),
+    );
+    if (!backrefNodes.length) {
+      const marker = document.createElement("span");
+      marker.hidden = true;
+      marker.setAttribute("data-footnote-backref", backrefHref);
+      item.insertBefore(marker, item.firstChild);
+      return;
+    }
+    backrefNodes.forEach((node) => {
+      node.setAttribute("data-footnote-backref", backrefHref);
+      if (node.tagName === "A") {
+        node.setAttribute("href", backrefHref);
+      }
+    });
+  };
+
+  const buildFootnoteRegistryPayload = (sourceHtml, primaryIndex = 0) => {
+    const template = document.createElement("template");
+    template.innerHTML = String(sourceHtml || "");
+    const fallbackHost = document.createElement("div");
+    fallbackHost.setAttribute("aria-hidden", "true");
+    fallbackHost.style.cssText =
+      "display:block;height:0;overflow:hidden;pointer-events:none;";
+    fallbackHost.setAttribute("data-sps-fnref-fallback-host", "1");
+    template.content.insertBefore(fallbackHost, template.content.firstChild);
+    const usedIds = new Set();
+    template.content.querySelectorAll("[id]").forEach((node) => {
+      const id = String(node.getAttribute("id") || "").trim();
+      if (id) usedIds.add(id);
+    });
+    const fnrefByIndex = new Map();
+    bindLocalFnrefAnchors(template.content, fnrefByIndex, usedIds);
+    if (primaryIndex > 0) {
+      ensureFallbackFnrefAnchor(primaryIndex, fallbackHost, fnrefByIndex, usedIds);
+    }
+    const queue = collectFootnoteTargetIds(template.content);
+    if (!queue.length) {
+      if (!fallbackHost.childNodes.length) fallbackHost.remove();
+      return {
+        contentHtml: template.innerHTML,
+        registryHtml: "",
+      };
+    }
+
+    const visitedTargets = new Set();
+    const seenItems = new Set();
+    const rows = [];
+
+    while (queue.length) {
+      const targetId = String(queue.shift() || "").trim();
+      if (!targetId || visitedTargets.has(targetId)) continue;
+      visitedTargets.add(targetId);
+
+      const item = resolveFootnoteItemByTargetId(targetId);
+      if (!item) continue;
+
+      const index = getFootnoteIndexForItem(item, 0);
+      const rawId = String(item.getAttribute("id") || "").trim();
+      const resolvedId = rawId || targetId || (index > 0 ? `fn${index}` : "");
+      const key = resolvedId || (index > 0 ? `idx:${index}` : "");
+      if (!key || seenItems.has(key)) continue;
+      seenItems.add(key);
+
+      const clone = item.cloneNode(true);
+      syncRichMediaFromSource(item, clone);
+      if (resolvedId) clone.setAttribute("id", resolvedId);
+      if (index > 0) {
+        clone.setAttribute("data-footnote-index", String(index));
+        clone.setAttribute("value", String(index));
+      }
+      bindLocalFnrefAnchors(clone, fnrefByIndex, usedIds);
+      if (index > 0) {
+        const backrefHref =
+          fnrefByIndex.get(index) ||
+          ensureFallbackFnrefAnchor(index, fallbackHost, fnrefByIndex, usedIds) ||
+          `#fnref${index}`;
+        rewriteFootnoteBackrefs(clone, backrefHref);
+      }
+      collectFootnoteTargetIds(clone).forEach((id) => {
+        if (!visitedTargets.has(id)) queue.push(id);
+      });
+      rows.push(clone.outerHTML);
+    }
+
+    if (!fallbackHost.childNodes.length) fallbackHost.remove();
+    return {
+      contentHtml: template.innerHTML,
+      registryHtml: rows.length
+        ? `<hr class="footnotes-sep">` +
+          `<section class="footnotes sps-footnote-registry">` +
+          `<ol>${rows.join("")}</ol>` +
+          `</section>`
+        : "",
+    };
+  };
+
   const openFootnoteInNewTab = (index, contentHtml) => {
-    const title = index ? `脚注 ${index}` : "脚注";
+    const title = index ? `\u811A\u6CE8 ${index}` : "\u811A\u6CE8";
     const tab = window.open("", "_blank");
     if (!tab || !tab.document) return;
+    const assetsBaseUrl = getShareAssetsBaseUrl();
+    const markdownCssUrl = resolveShareAssetUrl(
+      "link[href*='/assets/vendor/github-markdown.min.css']",
+      "vendor/github-markdown.min.css",
+      assetsBaseUrl,
+    );
+    const katexCssUrl = resolveShareAssetUrl(
+      "link[href*='/assets/vendor/katex.min.css']",
+      "vendor/katex.min.css",
+      assetsBaseUrl,
+    );
+    const highlightCssUrl = resolveShareAssetUrl(
+      "link[href*='/assets/vendor/highlight.min.css']",
+      "vendor/highlight.min.css",
+      assetsBaseUrl,
+    );
+    const siteCssUrl = resolveShareAssetUrl(
+      "link[href*='/assets/style.css']",
+      "style.css",
+      assetsBaseUrl,
+    );
+    const scriptEntries = getShareMarkdownScriptEntries(assetsBaseUrl);
+    const currentUrl = new URL(window.location.href);
+    currentUrl.hash = "";
     const safeTitle = escapeHtml(title);
-    const baseHref = escapeHtml(window.location.href || "");
+    const baseHref = escapeHtml(currentUrl.toString());
+    const headerTitle = escapeHtml(title);
+    const rawContent = contentHtml || "<p>\u6682\u65E0\u5185\u5BB9</p>";
+    const footnotePayload = buildFootnoteRegistryPayload(rawContent, index);
+    const renderedContent = footnotePayload.contentHtml || rawContent;
+    const registryHtml = footnotePayload.registryHtml || "";
+    const initialHtml = `${renderedContent}${registryHtml}`;
+    const sourceValue = escapeHtml(initialHtml);
+    const headLinks = [
+      markdownCssUrl,
+      katexCssUrl,
+      highlightCssUrl,
+      siteCssUrl,
+    ]
+      .filter(Boolean)
+      .map((href) => `<link rel="stylesheet" href="${escapeHtml(href)}">`)
+      .join("");
+    const scriptTags = scriptEntries
+      .map((entry) => {
+        const onload = entry.readyEvent
+          ? ` onload="window.dispatchEvent(new Event('sps:markdown-ready'))"`
+          : "";
+        return `<script defer src="${escapeHtml(entry.url)}"${onload}><\/script>`;
+      })
+      .join("");
+    const footnoteTabStyle =
+      `<style>` +
+      `body.sps-footnote-tab .markdown-body hr.footnotes-sep,` +
+      `body.sps-footnote-tab .markdown-body .footnotes,` +
+      `body.sps-footnote-tab .markdown-body .markdown-footnotes,` +
+      `body.sps-footnote-tab .markdown-body sup.footnote-ref,` +
+      `body.sps-footnote-tab .markdown-body .footnote-ref,` +
+      `body.sps-footnote-tab .markdown-body .sps-footnote-registry{display:none !important;}` +
+      `</style>`;
     const doc = tab.document;
     doc.open();
     doc.write(
@@ -1065,16 +1566,36 @@
         `<meta name="viewport" content="width=device-width, initial-scale=1">` +
         `<base href="${baseHref}">` +
         `<title>${safeTitle}</title>` +
-        `<style>` +
-        `:root{color-scheme:light;}` +
-        `*{box-sizing:border-box;}` +
-        `body{margin:0;padding:36px 20px;font-family:"Noto Sans SC","Outfit","Microsoft YaHei",sans-serif;color:#1f2a37;background:#fff;line-height:1.7;}` +
-        `main{max-width:760px;margin:0 auto;}` +
-        `p{margin:0 0 12px 0;}` +
-        `a{color:#0969da;text-decoration:none;}a:hover{text-decoration:underline;}` +
-        `code,pre{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}` +
-        `pre{background:#f6f8fa;padding:12px;border-radius:8px;overflow:auto;}` +
-        `</style></head><body><main>${contentHtml}</main></body></html>`,
+        headLinks +
+        footnoteTabStyle +
+        `</head><body class="layout-share sps-footnote-tab">` +
+        `<div class="share-page">` +
+        `<div class="share-shell share-shell--notebook">` +
+        `<aside class="kb-sidebar" data-share-sidebar data-share-slug="">` +
+        `<div class="kb-side-tabs" data-share-tabs data-share-default="toc">` +
+        `<button class="kb-side-tab is-active" type="button" data-share-tab="toc">\u76EE\u5F55</button>` +
+        `</div>` +
+        `<div class="kb-side-panel" data-share-panel="toc" data-share-toc="doc" data-sps-hide-footnotes="1">` +
+        `<div class="kb-side-body share-toc-body"></div>` +
+        `</div>` +
+        `</aside>` +
+        `<div class="kb-main">` +
+        `<div class="share-article" data-share-view="preview">` +
+        `<div class="kb-header">` +
+        `<div class="kb-title-row"><h1 class="kb-title">${headerTitle}</h1></div>` +
+        `</div>` +
+        `<div class="markdown-body" data-md-id="doc">${initialHtml}</div>` +
+        `<textarea class="markdown-source" data-md-id="doc" readonly spellcheck="false" aria-label="Markdown 源码">${sourceValue}</textarea>` +
+        `</div>` +
+        `</div>` +
+        `</div>` +
+        `<footer class="share-footer">\u7531 <a href="https://github.com/b8l8u8e8/siyuan-plugin-share" target="_blank" rel="noopener noreferrer">b8l8u8e8</a> \u63d0\u4F9B\u652F\u6301</footer>` +
+        `<button class="share-side-trigger" type="button" data-share-drawer-open aria-label="\u6253\u5F00\u4FA7\u8FB9\u680F"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg><span>\u5BFC\u822A</span></button>` +
+        `<div class="share-side-backdrop" data-share-drawer-close></div>` +
+        `<button class="scroll-top" type="button" data-scroll-top aria-label="\u56DE\u5230\u9876\u90E8"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c-2.76 0-5 2.24-5 5v2.5L4 13l4.5 1L12 22l3.5-8L20 13l-3-3.5V7c0-2.76-2.24-5-5-5zm0 3a2 2 0 0 1 2 2v1.5l-2 2-2-2V7a2 2 0 0 1 2-2z"/></svg></button>` +
+        `</div>` +
+        scriptTags +
+        `</body></html>`,
     );
     doc.close();
   };
@@ -1100,7 +1621,16 @@
     footnoteWindowZ = 1300;
   };
 
-  const createFootnoteWindow = (index, contentHtml) => {
+  const createFootnoteWindow = (index, contentHtml, options = {}) => {
+    const anchorPoint =
+      options &&
+      Number.isFinite(options.anchorPoint?.x) &&
+      Number.isFinite(options.anchorPoint?.y)
+        ? {
+            x: Number(options.anchorPoint.x),
+            y: Number(options.anchorPoint.y),
+          }
+        : null;
     const windowEl = document.createElement("section");
     windowEl.className = "sps-footnote-window";
     windowEl.dataset.footnoteIndex = String(index || "");
@@ -1233,7 +1763,8 @@
       if (!item) return;
       const nextIndex = getFootnoteIndexForItem(item, 0);
       const nextHtml = buildFootnoteContentHtml(item);
-      createFootnoteWindow(nextIndex, nextHtml);
+      const nextAnchor = resolveFootnoteAnchorPoint(event, anchor);
+      createFootnoteWindow(nextIndex, nextHtml, {anchorPoint: nextAnchor});
     });
 
     const dragState = {
@@ -1476,15 +2007,6 @@
       window.addEventListener("mouseup", onResizeEnd);
     });
 
-    const offset = (footnoteWindowSeq % 6) * 18;
-    footnoteWindowSeq += 1;
-    const minLeft = 8;
-    const minTop = 8;
-    const maxLeft = Math.max(minLeft, window.innerWidth - 260);
-    const maxTop = Math.max(minTop, window.innerHeight - 180);
-    windowEl.style.left = `${Math.min(Math.max(minLeft, 48 + offset), maxLeft)}px`;
-    windowEl.style.top = `${Math.min(Math.max(minTop, 120 + offset), maxTop)}px`;
-
     const applyDefaultWindowSize = () => {
       const maxHeight = Math.min(window.innerHeight * 0.6, 520);
       const maxWidth = Math.min(window.innerWidth * 0.7, 520);
@@ -1494,12 +2016,42 @@
       windowEl.style.height = `${safeHeight}px`;
     };
 
+    const applyWindowPosition = () => {
+      const margin = 8;
+      const gap = 12;
+      const rect = windowEl.getBoundingClientRect();
+      const width = rect.width || parseFloat(windowEl.style.width) || 260;
+      const height = rect.height || parseFloat(windowEl.style.height) || 180;
+      const minLeft = margin;
+      const minTop = margin;
+      const maxLeft = Math.max(minLeft, window.innerWidth - width - margin);
+      const maxTop = Math.max(minTop, window.innerHeight - height - margin);
+
+      if (anchorPoint) {
+        let nextLeft = anchorPoint.x + gap;
+        let nextTop = anchorPoint.y + gap;
+        if (nextLeft > maxLeft) nextLeft = anchorPoint.x - width - gap;
+        if (nextTop > maxTop) nextTop = anchorPoint.y - height - gap;
+        windowEl.style.left = `${Math.min(Math.max(minLeft, nextLeft), maxLeft)}px`;
+        windowEl.style.top = `${Math.min(Math.max(minTop, nextTop), maxTop)}px`;
+        return;
+      }
+
+      const offset = (footnoteWindowSeq % 6) * 18;
+      footnoteWindowSeq += 1;
+      const nextLeft = Math.min(Math.max(minLeft, 48 + offset), maxLeft);
+      const nextTop = Math.min(Math.max(minTop, 120 + offset), maxTop);
+      windowEl.style.left = `${nextLeft}px`;
+      windowEl.style.top = `${nextTop}px`;
+    };
+
     const revealWindow = () => {
       windowEl.style.visibility = "visible";
     };
 
     requestAnimationFrame(() => {
       applyDefaultWindowSize();
+      applyWindowPosition();
       revealWindow();
     });
 
@@ -1587,7 +2139,8 @@
         event.stopPropagation();
         const index = getFootnoteIndexForItem(item, 0);
         const contentHtml = buildFootnoteContentHtml(item);
-        createFootnoteWindow(index, contentHtml);
+        const anchorPoint = resolveFootnoteAnchorPoint(event, action);
+        createFootnoteWindow(index, contentHtml, {anchorPoint});
       });
 
       document.addEventListener("mousedown", (event) => {
@@ -3989,6 +4542,7 @@ const initImageViewer = () => {
         }
         const wrapper = document.createElement("div");
         wrapper.className = "md-diagram md-diagram--echarts";
+        wrapper.setAttribute("data-sps-echarts-source", encodeURIComponent(source));
         const chartEl = document.createElement("div");
         chartEl.className = "md-echarts";
         wrapper.appendChild(chartEl);
@@ -3998,8 +4552,36 @@ const initImageViewer = () => {
           chart.setOption(option, true);
           chartInstances.push(chart);
           bindChartResize();
+          chartEl.setAttribute("data-sps-echarts-inited", "1");
         } catch {
           wrapper.textContent = "ECharts render failed.";
+        }
+      });
+    };
+
+    const rehydrateEcharts = (container) => {
+      if (!window.echarts || typeof window.echarts.init !== "function") return;
+      container.querySelectorAll(".md-diagram--echarts").forEach((wrapper) => {
+        const chartEl = wrapper.querySelector(".md-echarts");
+        if (!chartEl) return;
+        if (chartEl.getAttribute("data-sps-echarts-inited") === "1") return;
+        const encoded = wrapper.getAttribute("data-sps-echarts-source") || "";
+        if (!encoded) return;
+        let option = null;
+        try {
+          option = JSON.parse(decodeURIComponent(encoded));
+        } catch {
+          return;
+        }
+        try {
+          chartEl.innerHTML = "";
+          const chart = window.echarts.init(chartEl);
+          chart.setOption(option, true);
+          chartInstances.push(chart);
+          bindChartResize();
+          chartEl.setAttribute("data-sps-echarts-inited", "1");
+        } catch {
+          // ignore render failures
         }
       });
     };
@@ -4617,6 +5199,7 @@ const initImageViewer = () => {
     };
 
     const iframeFullscreenWrappers = new Set();
+    const iframeFullscreenButtonsBound = new WeakSet();
     let iframeFullscreenListenerBound = false;
 
     const handleIframeFullscreenChange = () => {
@@ -4650,36 +5233,37 @@ const initImageViewer = () => {
           const nextValue = allowValue ? `${allowValue}; fullscreen` : "fullscreen";
           iframe.setAttribute("allow", nextValue);
         }
-        if (wrapper.querySelector(".iframe-fullscreen-toggle")) return;
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "iframe-fullscreen-toggle";
-        button.setAttribute("aria-label", "全屏");
-        button.setAttribute("title", "全屏");
-        button.innerHTML =
-          "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">" +
-          "<path d=\"M3 7V5a2 2 0 0 1 2-2h2\" />" +
-          "<path d=\"M17 3h2a2 2 0 0 1 2 2v2\" />" +
-          "<path d=\"M7 21H5a2 2 0 0 1-2-2v-2\" />" +
-          "<path d=\"M21 17v2a2 2 0 0 1-2 2h-2\" />" +
-          "</svg>";
-        button.addEventListener("click", async () => {
-          if (document.fullscreenElement) {
-            document.exitFullscreen().catch(() => {});
-            return;
-          }
-          const requestFullscreen = iframe.requestFullscreen?.bind(iframe);
-          if (requestFullscreen) {
-            try {
-              await requestFullscreen();
+        let button = wrapper.querySelector(".iframe-fullscreen-toggle");
+        if (!button) {
+          button = document.createElement("button");
+          button.type = "button";
+          button.className = "iframe-fullscreen-toggle";
+          button.setAttribute("aria-label", "全屏");
+          button.setAttribute("title", "全屏");
+          button.innerHTML =
+            "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">" +
+            "<path d=\"M3 7V5a2 2 0 0 1 2-2h2\" />" +
+            "<path d=\"M17 3h2a2 2 0 0 1 2 2v2\" />" +
+            "<path d=\"M7 21H5a2 2 0 0 1-2-2v-2\" />" +
+            "<path d=\"M21 17v2a2 2 0 0 1-2 2h-2\" />" +
+            "</svg>";
+          wrapper.appendChild(button);
+        }
+        if (!iframeFullscreenButtonsBound.has(button)) {
+          iframeFullscreenButtonsBound.add(button);
+          button.addEventListener("click", () => {
+            if (document.fullscreenElement) {
+              document.exitFullscreen().catch(() => {});
               return;
-            } catch (err) {
-              console.warn("iframe fullscreen failed, falling back to wrapper", err);
             }
-          }
-          wrapper.requestFullscreen?.().catch(() => {});
-        });
-        wrapper.appendChild(button);
+            const requestWrapperFullscreen = wrapper.requestFullscreen?.bind(wrapper);
+            if (requestWrapperFullscreen) {
+              requestWrapperFullscreen().catch(() => {});
+              return;
+            }
+            iframe.requestFullscreen?.().catch(() => {});
+          });
+        }
         iframeFullscreenWrappers.add(wrapper);
         if (!iframeFullscreenListenerBound) {
           document.addEventListener("fullscreenchange", handleIframeFullscreenChange);
@@ -4725,6 +5309,7 @@ const initImageViewer = () => {
         target.innerHTML = md.render(raw);
         renderMindmap(target);
         renderEcharts(target);
+        rehydrateEcharts(target);
         renderAbc(target);
         renderGraphviz(target);
         renderFlowchart(target);
