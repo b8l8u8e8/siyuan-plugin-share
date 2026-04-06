@@ -9136,7 +9136,7 @@ if ($path === '/login') {
     if (email_verification_available()) {
         $content .= '<div class="auth-tabs" data-login-tabs data-login-default="' . $loginTab . '">';
         $content .= '<button class="auth-tab" type="button" data-login-tab="password">密码登录</button>';
-        $content .= '<button class="auth-tab" type="button" data-login-tab="email">验证码登录</button>';
+        $content .= '<button class="auth-tab" type="button" data-login-tab="email">邮箱登录</button>';
         $content .= '</div>';
     }
     $content .= '<form method="post" class="auth-form" data-login-panel="password"' . ($loginTab === 'password' ? '' : ' hidden') . '>';
