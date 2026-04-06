@@ -2753,6 +2753,50 @@
     });
   };
 
+  const initActionTableOverflowState = () => {
+    const wrappers = Array.from(
+      document.querySelectorAll(
+        "body.layout-app .table-scroll.table-scroll-has-actions",
+      ),
+    );
+    if (!wrappers.length) return;
+
+    const updateOne = (wrapper) => {
+      const hasOverflow = wrapper.scrollWidth - wrapper.clientWidth > 1;
+      wrapper.classList.toggle("is-overflowing", hasOverflow);
+    };
+
+    const updateAll = () => {
+      wrappers.forEach((wrapper) => {
+        updateOne(wrapper);
+      });
+    };
+
+    wrappers.forEach((wrapper) => {
+      updateOne(wrapper);
+    });
+
+    window.addEventListener("resize", updateAll, {passive: true});
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(() => {
+        updateAll();
+      });
+      wrappers.forEach((wrapper) => {
+        observer.observe(wrapper);
+        const table = wrapper.querySelector("table.table-has-actions");
+        if (table) observer.observe(table);
+      });
+    }
+
+    window.requestAnimationFrame(() => {
+      updateAll();
+    });
+    window.setTimeout(() => {
+      updateAll();
+    }, 120);
+  };
+
   const initUserModal = () => {
     const modal = document.querySelector("[data-user-modal]");
     if (!modal) return;
@@ -6143,6 +6187,7 @@ const initImageViewer = () => {
   initRangeSwitch();
   initAdminCharts();
   initKnowledgeTree();
+  initActionTableOverflowState();
   initBatchSelection();
   initUserModal();
   initUserCreateModal();

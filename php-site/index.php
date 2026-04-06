@@ -9879,7 +9879,7 @@ if ($path === '/dashboard') {
     if (empty($shares)) {
         $content .= '<p class="muted" style="margin-top:12px">暂无分享记录。</p>';
     } else {
-        $content .= '<table class="table" style="margin-top:12px"><thead><tr><th>标题</th><th>类型</th><th>链接</th><th>密码</th><th>到期</th><th>访客上限</th><th>状态</th><th>评论邮件通知</th><th>大小</th><th>更新时间</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll" style="margin-top:12px"><table class="table"><thead><tr><th>标题</th><th>类型</th><th>链接</th><th>密码</th><th>到期</th><th>访客上限</th><th>状态</th><th>评论邮件通知</th><th>大小</th><th>更新时间</th></tr></thead><tbody>';
         foreach ($shares as $share) {
             $title = htmlspecialchars($share['title']);
             $type = $share['type'] === 'notebook' ? '笔记本' : '文档';
@@ -9925,7 +9925,7 @@ if ($path === '/dashboard') {
             }
             $content .= "<tr><td>{$title}</td><td>{$type}</td><td><a href=\"{$url}\" target=\"_blank\">{$url}</a></td><td>{$hasPassword}</td><td>{$expiresAt}</td><td>{$visitorLabel}</td><td>{$status}</td><td>{$notifyHtml}</td><td>{$size}</td><td>{$updated}</td></tr>";
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '<div class="pagination">';
     $content .= '<a class="button ghost" href="' . build_dashboard_query_url(['share_page' => max(1, $sharePage - 1)]) . '">上一页</a>';
@@ -9988,11 +9988,11 @@ if ($path === '/dashboard') {
 
     $content .= '<div class="stats-block">';
     $content .= '<div class="stats-title">访问概况</div>';
-    $content .= '<table class="table stats-table"><thead><tr><th></th><th>浏览量(PV)</th><th>访客数(UV)</th><th>IP 数量</th></tr></thead><tbody>';
+    $content .= '<div class="table-scroll"><table class="table stats-table"><thead><tr><th></th><th>浏览量(PV)</th><th>访客数(UV)</th><th>IP 数量</th></tr></thead><tbody>';
     $content .= '<tr><td>今日</td><td>' . $accessSummary['pv_today'] . '</td><td>' . $accessSummary['uv_today'] . '</td><td>' . $accessSummary['ip_today'] . '</td></tr>';
     $content .= '<tr><td>昨日</td><td>' . $accessSummary['pv_yesterday'] . '</td><td>' . $accessSummary['uv_yesterday'] . '</td><td>' . $accessSummary['ip_yesterday'] . '</td></tr>';
     $content .= '<tr><td>总计</td><td>' . $accessSummary['pv_total'] . '</td><td>' . $accessSummary['uv_total'] . '</td><td>' . $accessSummary['ip_total'] . '</td></tr>';
-    $content .= '</tbody></table>';
+    $content .= '</tbody></table></div>';
     $content .= '</div>';
 
     $content .= '<div class="stats-block">';
@@ -10000,7 +10000,7 @@ if ($path === '/dashboard') {
     if (empty($accessSources)) {
         $content .= '<p class="muted">暂无来源数据。</p>';
     } else {
-        $content .= '<table class="table stats-table"><thead><tr><th>排名</th><th>次数</th><th>来源地址</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll"><table class="table stats-table"><thead><tr><th>排名</th><th>次数</th><th>来源地址</th></tr></thead><tbody>';
         $rank = 1;
         foreach ($accessSources as $row) {
             $referer = (string)($row['referer'] ?? '');
@@ -10008,7 +10008,7 @@ if ($path === '/dashboard') {
             $content .= '<tr><td>' . $rank . '</td><td>' . $total . '</td><td class="stats-source">' . htmlspecialchars($referer) . '</td></tr>';
             $rank++;
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
         $content .= '<div class="pagination">';
         $content .= '<a class="button ghost" href="' . build_access_stats_query_url(['access_source_page' => max(1, $accessSourcePage - 1)]) . '">上一页</a>';
         $content .= '<div class="pagination-info">第 ' . $accessSourcePage . ' / ' . $accessSourcePages . ' 页，共 ' . $accessSourceTotal . ' 条来源</div>';
@@ -10082,7 +10082,7 @@ if ($path === '/dashboard') {
     if (empty($accessLogs)) {
         $content .= '<p class="muted">暂无访问记录。</p>';
     } else {
-        $content .= '<table class="table stats-table"><thead><tr><th><input type="checkbox" data-check-all="access" form="access-batch-form"></th><th>标题</th><th>IP</th><th>IP归属地</th><th>访问日期</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll"><table class="table stats-table"><thead><tr><th><input type="checkbox" data-check-all="access" form="access-batch-form"></th><th>标题</th><th>IP</th><th>IP归属地</th><th>访问日期</th></tr></thead><tbody>';
         foreach ($accessLogs as $log) {
             $logTitle = trim((string)($log['doc_title'] ?? ''));
             if ($logTitle === '') {
@@ -10125,7 +10125,7 @@ if ($path === '/dashboard') {
             $content .= '<td>' . htmlspecialchars((string)($log['created_at'] ?? '')) . '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '<div class="pagination">';
     $content .= '<a class="button ghost" href="' . build_access_stats_query_url(['access_page' => max(1, $accessPage - 1)]) . '">上一页</a>';
@@ -11012,7 +11012,7 @@ if ($path === '/admin') {
     if (empty($announcements)) {
         $content .= '<p class="muted">暂无公告。</p>';
     } else {
-        $content .= '<table class="table"><thead><tr><th>标题</th><th>状态</th><th>发布人</th><th>发布时间</th><th>操作</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll table-scroll-has-actions"><table class="table table-has-actions"><thead><tr><th>标题</th><th>状态</th><th>发布人</th><th>发布时间</th><th class="actions">操作</th></tr></thead><tbody>';
         foreach ($announcements as $item) {
             $status = ((int)$item['active'] === 1) ? '已启用' : '已停用';
             $author = $item['author'] ?? '系统';
@@ -11049,7 +11049,7 @@ if ($path === '/admin') {
             $content .= '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '</div>';
 
@@ -11078,7 +11078,7 @@ if ($path === '/admin') {
     if (empty($reports)) {
         $content .= '<p class="muted" style="margin-top:12px">暂无举报记录。</p>';
     } else {
-        $content .= '<table class="table" style="margin-top:12px"><thead><tr><th><input type="checkbox" data-check-all="reports" form="report-batch-form"></th><th>时间</th><th>分享</th><th>用户</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll table-scroll-has-actions" style="margin-top:12px"><table class="table table-has-actions"><thead><tr><th><input type="checkbox" data-check-all="reports" form="report-batch-form"></th><th>时间</th><th>分享</th><th>用户</th><th>状态</th><th class="actions">操作</th></tr></thead><tbody>';
         foreach ($reports as $report) {
             $reportId = (int)($report['id'] ?? 0);
             $shareTitle = htmlspecialchars((string)($report['share_title'] ?? ''));
@@ -11163,7 +11163,7 @@ if ($path === '/admin') {
             $content .= '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '<div class="pagination">';
     $content .= '<a class="button ghost" href="' . build_admin_query_url('reports', ['report_page' => max(1, $reportPage - 1)]) . '">上一页</a>';
@@ -11222,7 +11222,7 @@ if ($path === '/admin') {
     if (empty($users)) {
         $content .= '<p class="muted" style="margin-top:12px">暂无用户记录。</p>';
     } else {
-        $content .= '<table class="table"><thead><tr><th><input type="checkbox" data-check-all="users" form="user-batch-form"></th><th>用户名</th><th>角色</th><th>状态</th><th>邮箱</th><th>存储</th><th>操作</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll table-scroll-has-actions"><table class="table table-has-actions"><thead><tr><th><input type="checkbox" data-check-all="users" form="user-batch-form"></th><th>用户名</th><th>角色</th><th>状态</th><th>邮箱</th><th>存储</th><th class="actions">操作</th></tr></thead><tbody>';
         foreach ($users as $u) {
             $status = (int)$u['disabled'] === 1 ? '禁用' : '正常';
             $roleLabel = $u['role'] === 'admin' ? '管理员' : '用户';
@@ -11253,7 +11253,7 @@ if ($path === '/admin') {
             $content .= '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '';
 
@@ -11316,7 +11316,7 @@ if ($path === '/admin') {
     if (empty($shares)) {
         $content .= '<p class="muted" style="margin-top:12px">暂无分享记录。</p>';
     } else {
-        $content .= '<table class="table" style="margin-top:12px"><thead><tr><th><input type="checkbox" data-check-all="shares" form="share-batch-form"></th><th>标题</th><th>链接</th><th>类型</th><th>用户</th><th>密码</th><th>到期</th><th>访客上限</th><th>状态</th><th>评论邮件通知</th><th>大小</th><th>更新时间</th><th>操作</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll table-scroll-has-actions" style="margin-top:12px"><table class="table table-has-actions"><thead><tr><th><input type="checkbox" data-check-all="shares" form="share-batch-form"></th><th>标题</th><th>链接</th><th>类型</th><th>用户</th><th>密码</th><th>到期</th><th>访客上限</th><th>状态</th><th>评论邮件通知</th><th>大小</th><th>更新时间</th><th class="actions">操作</th></tr></thead><tbody>';
         foreach ($shares as $share) {
             $type = $share['type'] === 'notebook' ? '笔记本' : '文档';
             $status = !empty($share['deleted_at'])
@@ -11368,7 +11368,7 @@ if ($path === '/admin') {
             $content .= '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '';
 
@@ -11404,7 +11404,7 @@ if ($path === '/admin') {
         $content .= '<input type="hidden" name="csrf" value="' . csrf_token() . '">';
         $content .= '<button class="button danger" type="submit">清理全部过期分片</button>';
         $content .= '</form>';
-        $content .= '<table class="table" style="margin-top:12px"><thead><tr><th>目录</th><th>最后更新</th><th>已过期</th><th>操作</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll table-scroll-has-actions" style="margin-top:12px"><table class="table table-has-actions"><thead><tr><th>目录</th><th>最后更新</th><th>已过期</th><th class="actions">操作</th></tr></thead><tbody>';
         foreach ($staleChunks as $chunk) {
             $chunkId = (string)$chunk['id'];
             $mtime = (int)$chunk['mtime'];
@@ -11422,7 +11422,7 @@ if ($path === '/admin') {
             $content .= '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
     }
     $content .= '</div>';
 
@@ -11473,7 +11473,7 @@ if ($path === '/admin') {
         $content .= '<button class="button" type="submit">执行</button>';
         $content .= '</div>';
         $content .= '</form>';
-        $content .= '<table class="table scan-table" style="margin-top:12px"><thead><tr><th><input type="checkbox" data-check-all="scan" form="scan-batch-form"></th><th>分享</th><th>文档/评论</th><th>用户</th><th>违禁词</th><th>预览</th><th>链接</th></tr></thead><tbody>';
+        $content .= '<div class="table-scroll" style="margin-top:12px"><table class="table scan-table"><thead><tr><th><input type="checkbox" data-check-all="scan" form="scan-batch-form"></th><th>分享</th><th>文档/评论</th><th>用户</th><th>违禁词</th><th>预览</th><th>链接</th></tr></thead><tbody>';
         foreach ($scanPageResults as $hit) {
             $itemType = (string)($hit['item_type'] ?? 'doc');
             $shareTitleRaw = (string)($hit['share_title'] ?? '');
@@ -11552,7 +11552,7 @@ if ($path === '/admin') {
             $content .= '</td>';
             $content .= '</tr>';
         }
-        $content .= '</tbody></table>';
+        $content .= '</tbody></table></div>';
 
         $content .= '<div class="pagination">';
         $content .= '<a class="button ghost" href="' . build_admin_query_url('scan', ['scan_page' => max(1, $scanPage - 1), 'scan_keep' => $scanKeepParam]) . '">上一页</a>';

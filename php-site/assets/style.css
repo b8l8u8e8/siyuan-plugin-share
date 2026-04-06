@@ -282,6 +282,89 @@ label {
   vertical-align: top;
 }
 
+/* Backend tables: keep one-line cells; all backend table wrappers scroll horizontally when needed */
+body.layout-app .table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scrollbar-color: rgba(145, 149, 156, 0.55) transparent;
+}
+
+body.layout-app .table-scroll:hover,
+body.layout-app .table-scroll:focus-within {
+  scrollbar-width: thin;
+}
+
+body.layout-app .table-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+body.layout-app .table-scroll:hover::-webkit-scrollbar,
+body.layout-app .table-scroll:focus-within::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+body.layout-app .table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.layout-app .table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(145, 149, 156, 0.55);
+  border-radius: 999px;
+}
+
+body.layout-app .table th,
+body.layout-app .table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+body.layout-app .table-scroll .table {
+  min-width: 100%;
+  width: max-content;
+}
+
+body.layout-app .table.table-has-actions th.actions,
+body.layout-app .table.table-has-actions td.actions {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-left: 1px solid transparent;
+  box-shadow: none;
+}
+
+body.layout-app .table.table-has-actions th.actions::before,
+body.layout-app .table.table-has-actions td.actions::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: -1px;
+  bottom: -1px;
+  width: 10px;
+  pointer-events: none;
+  background: transparent;
+}
+
+body.layout-app .table-scroll.table-scroll-has-actions.is-overflowing .table.table-has-actions th.actions,
+body.layout-app .table-scroll.table-scroll-has-actions.is-overflowing .table.table-has-actions td.actions {
+  border-left-color: var(--border);
+  box-shadow: -8px 0 12px -10px rgba(31, 42, 55, 0.55);
+}
+
+body.layout-app .table-scroll.table-scroll-has-actions.is-overflowing .table.table-has-actions th.actions::before,
+body.layout-app .table-scroll.table-scroll-has-actions.is-overflowing .table.table-has-actions td.actions::before {
+  background: linear-gradient(to left, rgba(31, 42, 55, 0.08), rgba(31, 42, 55, 0));
+}
+
+body.layout-app .table.table-has-actions thead th.actions {
+  z-index: 3;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1738,15 +1821,23 @@ body.app-side-open {
 }
 
 .comment-notify {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
-  white-space: normal;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .comment-notify-status {
   font-weight: 600;
+  line-height: 1.2;
+}
+
+.comment-notify .inline-form {
+  display: inline-flex;
+  align-items: center;
+  align-self: auto;
+  margin: 0;
 }
 
 .switch {
@@ -4203,14 +4294,14 @@ body.image-viewer-open {
     width: 100%;
   }
 
-  .table {
+  body:not(.layout-app) .table {
     display: block;
     overflow-x: auto;
     width: 100%;
   }
 
-  .table th,
-  .table td {
+  body:not(.layout-app) .table th,
+  body:not(.layout-app) .table td {
     white-space: nowrap;
   }
 
