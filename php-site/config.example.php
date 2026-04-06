@@ -28,7 +28,7 @@ return [
     // 'uploads_dir' => __DIR__ . '/uploads',
 
     // Site version shown in dashboard header, 不要改动此项
-    'site_version' => '0.5.3',
+    'site_version' => '0.5.4',
     // Central stats server used for update heartbeat, 不要改动此项
     'central_stats_url' => 'https://share.b0x.top',
 ];

@@ -1,5 +1,12 @@
 # 更新日志
 
+## 0.5.4 2026/4/6
+
+- [x] 修复插件端部分bug
+- [x] 服务端分享列表状态筛选新增“已过期”条件，便于快速定位过期分享
+- [x] 优化服务端表格样式  [Issues 58](https://github.com/b8l8u8e8/siyuan-plugin-share/issues/58)
+- [x] 登录与注册页面新增双吉祥物互动动画
+
 ## 0.5.3 2026/3/19
 
 - [x] 服务端后台新增自定义 CSS 和 JS 功能，提升用户对网站界面与行为的自定义能力。  [Issues 55](https://github.com/b8l8u8e8/siyuan-plugin-share/issues/55)
