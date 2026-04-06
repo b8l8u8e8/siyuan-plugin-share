@@ -9664,7 +9664,7 @@ if ($path === '/dashboard') {
     $sharePage = max(1, (int)($_GET['share_page'] ?? 1));
     $shareSize = normalize_page_size($_GET['share_size'] ?? 10);
     $filterStatus = (string)($_GET['status'] ?? 'active');
-    if (!in_array($filterStatus, ['active', 'deleted', 'all'], true)) {
+    if (!in_array($filterStatus, ['active', 'expired', 'deleted', 'all'], true)) {
         $filterStatus = 'active';
     }
     $where = ['user_id = :uid'];
@@ -9675,6 +9675,13 @@ if ($path === '/dashboard') {
     }
     if ($filterStatus === 'active') {
         $where[] = 'deleted_at IS NULL';
+        $where[] = '(expires_at IS NULL OR expires_at <= 0 OR expires_at >= :now_ts)';
+        $params[':now_ts'] = time();
+    } elseif ($filterStatus === 'expired') {
+        $where[] = 'deleted_at IS NULL';
+        $where[] = 'expires_at > 0';
+        $where[] = 'expires_at < :now_ts';
+        $params[':now_ts'] = time();
     } elseif ($filterStatus === 'deleted') {
         $where[] = 'deleted_at IS NOT NULL';
     }
@@ -9862,6 +9869,7 @@ if ($path === '/dashboard') {
     $content .= '<div><label>关键词</label><input class="input" name="share_search" placeholder="标题 / Slug" value="' . htmlspecialchars($shareSearch) . '"></div>';
     $content .= '<div><label>状态筛选</label><select class="input" name="status">';
     $content .= '<option value="active"' . ($filterStatus === 'active' ? ' selected' : '') . '>正常</option>';
+    $content .= '<option value="expired"' . ($filterStatus === 'expired' ? ' selected' : '') . '>已过期</option>';
     $content .= '<option value="deleted"' . ($filterStatus === 'deleted' ? ' selected' : '') . '>已删除</option>';
     $content .= '<option value="all"' . ($filterStatus === 'all' ? ' selected' : '') . '>全部</option>';
     $content .= '</select></div>';
@@ -9887,7 +9895,9 @@ if ($path === '/dashboard') {
             } else {
                 $visitorLabel = '不限';
             }
-            $status = $share['deleted_at'] ? '已删除' : '正常';
+            $status = !empty($share['deleted_at'])
+                ? '已删除'
+                : (share_is_expired($share) ? '已过期' : '正常');
             $notifyEnabled = (int)($share['comment_notify'] ?? 0) === 1;
             if (!empty($share['deleted_at'])) {
                 $notifyHtml = '<span class="muted">已删除</span>';
@@ -10766,7 +10776,7 @@ if ($path === '/admin') {
     $shareSearch = trim((string)($_GET['share_search'] ?? ''));
     $sharePage = max(1, (int)($_GET['share_page'] ?? 1));
     $shareSize = normalize_page_size($_GET['share_size'] ?? 10);
-    if (!in_array($filterStatus, ['active', 'deleted', 'all'], true)) {
+    if (!in_array($filterStatus, ['active', 'expired', 'deleted', 'all'], true)) {
         $filterStatus = 'active';
     }
     $where = [];
@@ -10781,6 +10791,13 @@ if ($path === '/admin') {
     }
     if ($filterStatus === 'active') {
         $where[] = 'shares.deleted_at IS NULL';
+        $where[] = '(shares.expires_at IS NULL OR shares.expires_at <= 0 OR shares.expires_at >= :now_ts)';
+        $params[':now_ts'] = time();
+    } elseif ($filterStatus === 'expired') {
+        $where[] = 'shares.deleted_at IS NULL';
+        $where[] = 'shares.expires_at > 0';
+        $where[] = 'shares.expires_at < :now_ts';
+        $params[':now_ts'] = time();
     } elseif ($filterStatus === 'deleted') {
         $where[] = 'shares.deleted_at IS NOT NULL';
     }
@@ -11277,6 +11294,7 @@ if ($path === '/admin') {
     $content .= '<div><label>状态筛选</label><select class="input" name="status">';
     $content .= '<option value="all"' . ($filterStatus === 'all' ? ' selected' : '') . '>全部</option>';
     $content .= '<option value="active"' . ($filterStatus === 'active' ? ' selected' : '') . '>正常</option>';
+    $content .= '<option value="expired"' . ($filterStatus === 'expired' ? ' selected' : '') . '>已过期</option>';
     $content .= '<option value="deleted"' . ($filterStatus === 'deleted' ? ' selected' : '') . '>已删除</option>';
     $content .= '</select></div>';
     $content .= '</div>';
@@ -11301,7 +11319,9 @@ if ($path === '/admin') {
         $content .= '<table class="table" style="margin-top:12px"><thead><tr><th><input type="checkbox" data-check-all="shares" form="share-batch-form"></th><th>标题</th><th>链接</th><th>类型</th><th>用户</th><th>密码</th><th>到期</th><th>访客上限</th><th>状态</th><th>评论邮件通知</th><th>大小</th><th>更新时间</th><th>操作</th></tr></thead><tbody>';
         foreach ($shares as $share) {
             $type = $share['type'] === 'notebook' ? '笔记本' : '文档';
-            $status = $share['deleted_at'] ? '已删除' : '正常';
+            $status = !empty($share['deleted_at'])
+                ? '已删除'
+                : (share_is_expired($share) ? '已过期' : '正常');
             $size = format_bytes((int)($share['size_bytes'] ?? 0));
             $url = share_url((string)$share['slug']);
             $hasPassword = !empty($share['password_hash']) ? '有密码' : '无密码';
