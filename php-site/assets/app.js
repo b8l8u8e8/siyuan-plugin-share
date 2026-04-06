@@ -2691,6 +2691,105 @@
     setActive(defaultTab);
   };
 
+  const initAuthMascot = () => {
+    const mascots = Array.from(document.querySelectorAll("[data-auth-mascot]"));
+    if (!mascots.length) return;
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const isPasswordField = (field) => {
+      if (!field) return false;
+      const type = String(field.getAttribute("type") || "").toLowerCase();
+      const name = String(field.getAttribute("name") || "").toLowerCase();
+      return type === "password" || name.includes("password");
+    };
+    const isVisible = (el) => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+
+    mascots.forEach((mascot) => {
+      const card = mascot.closest(".auth-card");
+      if (!card) return;
+      const fields = Array.from(card.querySelectorAll("input.auth-input"));
+      if (!fields.length) return;
+
+      const setLook = (x, y) => {
+        mascot.style.setProperty("--look-x", `${x.toFixed(2)}px`);
+        mascot.style.setProperty("--look-y", `${y.toFixed(2)}px`);
+      };
+
+      const updateLook = (field) => {
+        if (!field) {
+          setLook(0, 0);
+          return;
+        }
+        const mascotRect = mascot.getBoundingClientRect();
+        const fieldRect = field.getBoundingClientRect();
+        const mascotMidX = mascotRect.left + mascotRect.width * 0.5;
+        const mascotMidY = mascotRect.top + mascotRect.height * 0.48;
+        const fieldMidX = fieldRect.left + fieldRect.width * 0.5;
+        const fieldMidY = fieldRect.top + fieldRect.height * 0.5;
+        const xRatio = clamp(
+          (fieldMidX - mascotMidX) / Math.max(mascotRect.width * 0.55, 1),
+          -1,
+          1,
+        );
+        const yRatio = clamp(
+          (fieldMidY - mascotMidY) / Math.max(mascotRect.height * 0.65, 1),
+          -1,
+          1,
+        );
+
+        setLook(xRatio * 5.8, yRatio * 3.1);
+      };
+
+      const setState = (state) => {
+        mascot.setAttribute("data-mascot-state", state);
+      };
+
+      const sync = () => {
+        const active = card.querySelector("input.auth-input:focus");
+        if (!active || !isVisible(active)) {
+          setState("idle");
+          setLook(0, 0);
+          return;
+        }
+        if (isPasswordField(active)) {
+          setState("cover");
+          return;
+        }
+        setState("watch");
+        updateLook(active);
+      };
+
+      fields.forEach((field) => {
+        field.addEventListener("focus", sync);
+        field.addEventListener("blur", () => {
+          window.requestAnimationFrame(sync);
+        });
+        field.addEventListener("input", () => {
+          if (isPasswordField(field)) {
+            setState("cover");
+            return;
+          }
+          if (document.activeElement !== field) return;
+          setState("watch");
+          updateLook(field);
+        });
+        field.addEventListener("keyup", () => {
+          if (isPasswordField(field)) return;
+          if (document.activeElement !== field) return;
+          updateLook(field);
+        });
+        field.addEventListener("click", () => {
+          if (isPasswordField(field)) return;
+          if (document.activeElement !== field) return;
+          updateLook(field);
+        });
+      });
+
+      window.requestAnimationFrame(sync);
+      window.setTimeout(sync, 120);
+    });
+  };
+
   const initCountdownButtons = () => {
     const buttons = Array.from(document.querySelectorAll("[data-countdown-until]"));
     if (!buttons.length) return;
@@ -6207,6 +6306,7 @@ const initImageViewer = () => {
   initAppDrawer();
   initScrollTop();
   initLoginTabs();
+  initAuthMascot();
   initCountdownButtons();
   refreshShareDynamicContent();
 })();

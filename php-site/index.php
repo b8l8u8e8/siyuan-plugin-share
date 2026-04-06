@@ -1344,6 +1344,43 @@ function render_page(string $title, string $content, ?array $user = null, string
     exit;
 }
 
+function render_auth_mascot(): string {
+    return <<<'HTML'
+<div class="auth-mascot-pair" aria-hidden="true">
+  <div class="auth-mascot auth-mascot--left" data-auth-mascot data-mascot-state="idle">
+    <div class="auth-mascot__halo"></div>
+    <div class="auth-mascot__head">
+      <span class="auth-mascot__ear auth-mascot__ear--left"></span>
+      <span class="auth-mascot__ear auth-mascot__ear--right"></span>
+      <span class="auth-mascot__eye auth-mascot__eye--left"><span class="auth-mascot__pupil"></span></span>
+      <span class="auth-mascot__eye auth-mascot__eye--right"><span class="auth-mascot__pupil"></span></span>
+      <span class="auth-mascot__blush auth-mascot__blush--left"></span>
+      <span class="auth-mascot__blush auth-mascot__blush--right"></span>
+      <span class="auth-mascot__nose"></span>
+      <span class="auth-mascot__mouth"></span>
+      <span class="auth-mascot__hand auth-mascot__hand--left"></span>
+      <span class="auth-mascot__hand auth-mascot__hand--right"></span>
+    </div>
+  </div>
+  <div class="auth-mascot auth-mascot--right" data-auth-mascot data-mascot-state="idle">
+    <div class="auth-mascot__halo"></div>
+    <div class="auth-mascot__head">
+      <span class="auth-mascot__ear auth-mascot__ear--left"></span>
+      <span class="auth-mascot__ear auth-mascot__ear--right"></span>
+      <span class="auth-mascot__eye auth-mascot__eye--left"><span class="auth-mascot__pupil"></span></span>
+      <span class="auth-mascot__eye auth-mascot__eye--right"><span class="auth-mascot__pupil"></span></span>
+      <span class="auth-mascot__blush auth-mascot__blush--left"></span>
+      <span class="auth-mascot__blush auth-mascot__blush--right"></span>
+      <span class="auth-mascot__nose"></span>
+      <span class="auth-mascot__mouth"></span>
+      <span class="auth-mascot__hand auth-mascot__hand--left"></span>
+      <span class="auth-mascot__hand auth-mascot__hand--right"></span>
+    </div>
+  </div>
+</div>
+HTML;
+}
+
 function render_404_page(): void {
     $base = base_path();
     $content = '<div class="error-page">';
@@ -9085,10 +9122,11 @@ if ($path === '/login') {
     $nextLoginCodeAt = ($lastLoginSent && (time() - $lastLoginSent) < 60) ? ($lastLoginSent + 60) : 0;
     $nextLoginAttr = $nextLoginCodeAt ? ' data-countdown-until="' . ($nextLoginCodeAt * 1000) . '"' : '';
 
-    $content = '<div class="auth-card">';
+    $content = '<div class="auth-card auth-card--mascot">';
     $content .= '<div class="auth-logo">' . $brand . '</div>';
     $content .= '<div class="auth-title">账号登录</div>';
     $content .= '<div class="auth-subtitle">欢迎回来，请登录继续</div>';
+    $content .= render_auth_mascot();
     if ($error) {
         $content .= '<div class="alert error">' . htmlspecialchars($error) . '</div>';
     }
@@ -9311,10 +9349,11 @@ if ($path === '/register') {
     $lastSent = (int)($_SESSION['register_email_code_at'] ?? 0);
     $nextCodeAt = ($lastSent && (time() - $lastSent) < 60) ? ($lastSent + 60) : 0;
     $nextCodeAttr = $nextCodeAt ? ' data-countdown-until="' . ($nextCodeAt * 1000) . '"' : '';
-    $content = '<div class="auth-card">';
+    $content = '<div class="auth-card auth-card--mascot">';
     $content .= '<div class="auth-logo">' . $brand . '</div>';
     $content .= '<div class="auth-title">注册账号</div>';
     $content .= '<div class="auth-subtitle">填写信息创建账号</div>';
+    $content .= render_auth_mascot();
     if ($error) {
         $content .= '<div class="alert error">' . htmlspecialchars($error) . '</div>';
     }
@@ -9401,10 +9440,11 @@ if ($path === '/forgot') {
     $brand = htmlspecialchars($config['app_name']);
     $iconMail = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5z"/></svg>';
     $iconShield = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 4 5v6c0 5 3.6 9.2 8 11 4.4-1.8 8-6 8-11V5z"/></svg>';
-    $content = '<div class="auth-card">';
+    $content = '<div class="auth-card auth-card--mascot">';
     $content .= '<div class="auth-logo">' . $brand . '</div>';
     $content .= '<div class="auth-title">找回密码</div>';
     $content .= '<div class="auth-subtitle">输入邮箱获取重置码</div>';
+    $content .= render_auth_mascot();
     if ($error) {
         $content .= '<div class="alert error">' . htmlspecialchars($error) . '</div>';
     }
@@ -9474,10 +9514,11 @@ if ($path === '/reset') {
     $brand = htmlspecialchars($config['app_name']);
     $iconMail = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5z"/></svg>';
     $iconLock = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 8v-2a1 1 0 0 1 2 0v2zm3-8H10V7a2 2 0 0 1 4 0z"/></svg>';
-    $content = '<div class="auth-card">';
+    $content = '<div class="auth-card auth-card--mascot">';
     $content .= '<div class="auth-logo">' . $brand . '</div>';
     $content .= '<div class="auth-title">重置密码</div>';
     $content .= '<div class="auth-subtitle">输入邮箱与验证码设置新密码</div>';
+    $content .= render_auth_mascot();
     if ($error) {
         $content .= '<div class="alert error">' . htmlspecialchars($error) . '</div>';
     }
