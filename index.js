@@ -4496,7 +4496,6 @@ class SiYuanSharePlugin extends Plugin {
     const {currentWrap, sharesWrap, siteInput, apiKeyInput} = this.settingEls || {};
     this.makeSettingRowFullWidth(currentWrap);
     this.makeSettingRowFullWidth(sharesWrap);
-    this.alignSettingSiteSelectWidth();
     const anyEl = siteInput || apiKeyInput || currentWrap || sharesWrap;
     if (anyEl?.isConnected) {
       const dialogBody = anyEl.closest(".b3-dialog__body");
@@ -5688,11 +5687,11 @@ class SiYuanSharePlugin extends Plugin {
   initSettingPanel() {
     const t = this.t.bind(this);
     const siteSelect = document.createElement("select");
-    siteSelect.className = "b3-select sps-site-select sps-site-select--setting";
+    siteSelect.className = "b3-select sps-setting-field sps-site-select sps-site-select--setting";
     siteSelect.addEventListener("change", this.onSiteSelectChange);
 
     const siteNameInput = document.createElement("input");
-    siteNameInput.className = "b3-text-field fn__block";
+    siteNameInput.className = "b3-text-field fn__block sps-setting-field";
     siteNameInput.placeholder = t("siyuanShare.label.siteName");
 
     const siteActions = document.createElement("div");
@@ -5708,11 +5707,11 @@ class SiYuanSharePlugin extends Plugin {
     siteActions.addEventListener("click", this.onSettingSitesClick);
 
     const siteInput = document.createElement("input");
-    siteInput.className = "b3-text-field fn__block";
+    siteInput.className = "b3-text-field fn__block sps-setting-field";
     siteInput.placeholder = t("siyuanShare.placeholder.siteUrl");
 
     const apiKeyInput = document.createElement("input");
-    apiKeyInput.className = "b3-text-field fn__block";
+    apiKeyInput.className = "b3-text-field fn__block sps-setting-field";
     apiKeyInput.type = "password";
     apiKeyInput.placeholder = t("siyuanShare.label.apiKey");
 
