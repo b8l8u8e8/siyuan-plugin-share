@@ -9,6 +9,7 @@
 
 | 赞助者                                   | 支付方式 | 金额 | 赞助插件                                                     | 付款时间         |
 | ---------------------------------------- | -------- | ---- | ------------------------------------------------------------ | ---------------- |
+| *威                                      | 微信     | ¥5   | 未知                                                         | 2026-04-08 08:32 |
 | *阳                                      | 微信     | ¥30  | [siyuan-plugin-onlyoffice-bridge](https://github.com/b8l8u8e8/siyuan-plugin-onlyoffice-bridge) | 2026-03-20 15:48 |
 | *胖                                      | 微信     | ¥20  | [siyuan-plugin-share](https://github.com/b8l8u8e8/siyuan-plugin-share) | 2026-02-25 21:30 |
 | *宁                                      | 微信     | ¥50  | [siyuan-plugin-share](https://github.com/b8l8u8e8/siyuan-plugin-share) | 2026-02-14 09:18 |
