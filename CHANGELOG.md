@@ -1,5 +1,9 @@
 # 更新日志
 
+## 0.5.5 2026/7/12
+
+- [x] [Chen017](https://github.com/Chen017) 修复部分包含嵌套美元符号的数学公式显示异常问题 [PR 69](https://github.com/b8l8u8e8/siyuan-plugin-share/pull/69)
+
 ## 0.5.4 2026/4/6
 
 - [x] 修复插件端部分bug
