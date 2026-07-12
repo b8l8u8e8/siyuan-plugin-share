@@ -4646,6 +4646,18 @@ const initImageViewer = () => {
             match += 1;
             continue;
           }
+          // Skip $ inside braced groups (e.g. \text{...$...$...})
+          let braceDepth = 0;
+          for (let i = start; i < match; i++) {
+            const ch = state.src[i];
+            if (ch === "\\" && i + 1 < match) { i++; continue; }
+            if (ch === "{") braceDepth++;
+            else if (ch === "}") braceDepth--;
+          }
+          if (braceDepth !== 0) {
+            match += 1;
+            continue;
+          }
           const content = state.src.slice(start, match);
           if (!content.trim()) {
             match += 1;
