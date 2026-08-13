@@ -8,6 +8,7 @@
   --panel-bg: #f9fafc;
   --sidebar-width: 260px;
   --toc-width: 220px;
+  --right-width: 230px;
   --text: #1f2a37;
   --muted: #6b7280;
   --primary: #5a7bff;
@@ -24,6 +25,18 @@
   --font-body: "Noto Sans SC", "Outfit", "Microsoft YaHei", sans-serif;
   --font-markdown: "Noto Serif SC", "Noto Sans SC", "Microsoft YaHei", serif;
   --mermaid-font-family: var(--font-body);
+}
+
+@property --sidebar-width {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 260px;
+}
+
+@property --right-width {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 230px;
 }
 
 * {
@@ -2333,6 +2346,295 @@ body.app-side-open {
   flex-direction: column;
 }
 
+/* ── Share right rail (desktop) ── */
+
+.share-right {
+  flex: 0 0 auto;
+  width: var(--right-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 14px 16px 12px;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg);
+  position: sticky;
+  top: 24px;
+  height: calc(100vh - 48px);
+  align-self: flex-start;
+  overflow: hidden;
+}
+
+.share-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.share-panel--toc {
+  flex: 1;
+  min-height: 0;
+}
+
+.share-panel--recent {
+  flex: 0 0 auto;
+  max-height: 46%;
+}
+
+.share-panel-head {
+  flex: 0 0 auto;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.share-panel-title {
+  font-weight: 700;
+  color: #2c3766;
+  font-size: 0.85rem;
+}
+
+.share-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.share-panel-body:hover,
+.share-panel-body:focus-within {
+  scrollbar-width: thin;
+}
+
+.share-panel-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.share-panel-body:hover::-webkit-scrollbar,
+.share-panel-body:focus-within::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.share-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(90, 123, 255, 0.35);
+  border-radius: 999px;
+}
+
+.share-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.share-recent-list {
+  display: grid;
+  gap: 4px;
+}
+
+.share-recent-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.share-recent-item:hover {
+  text-decoration: none;
+  background: rgba(90, 123, 255, 0.08);
+}
+
+.share-recent-title {
+  font-size: 0.83rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-recent-time {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.share-recent-empty {
+  padding: 12px 4px;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+/* ── Share column gutters (drag to resize / collapse) ── */
+
+.share-gutter {
+  flex: 0 0 10px;
+  width: 10px;
+  position: relative;
+  cursor: col-resize;
+  align-self: stretch;
+  background: transparent;
+}
+
+.share-gutter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.share-gutter:hover::after,
+.share-gutter:active::after {
+  background: rgba(90, 123, 255, 0.55);
+}
+
+.share-gutter-toggle {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(24, 45, 95, 0.12);
+}
+
+.share-gutter-toggle:hover {
+  color: var(--primary-700);
+  border-color: #dbe3ff;
+}
+
+.share-gutter-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.share-gutter--right .share-gutter-toggle svg {
+  transform: rotate(180deg);
+}
+
+.share-gutter-label {
+  display: none;
+}
+
+/* Rails measure width exactly as chrome so a collapsed rail reaches true 0 */
+.share-shell--notebook .kb-sidebar,
+.share-shell--notebook .share-right,
+.share-shell--notebook .share-toc {
+  box-sizing: border-box;
+}
+
+/* Collapsed rails collapse to true 0 regardless of flex / padding quirks */
+.share-page.is-left-collapsed .kb-sidebar,
+.share-page.is-left-collapsed .share-toc {
+  width: 0 !important;
+  flex-basis: 0 !important;
+  min-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-right: none !important;
+}
+
+.share-page.is-right-collapsed .share-right {
+  width: 0 !important;
+  flex-basis: 0 !important;
+  min-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-left: none !important;
+}
+
+/* Collapsed tab state */
+.share-page.is-left-collapsed [data-share-gutter="left"],
+.share-page.is-right-collapsed [data-share-gutter="right"] {
+  flex-basis: 34px;
+  width: 34px;
+  cursor: pointer;
+  background: var(--panel-bg);
+}
+
+.share-page.is-left-collapsed [data-share-gutter="left"] {
+  border-right: 1px solid var(--border);
+}
+
+.share-page.is-right-collapsed [data-share-gutter="right"] {
+  border-left: 1px solid var(--border);
+}
+
+.share-page.is-left-collapsed [data-share-gutter="left"] .share-gutter-toggle svg,
+.share-page.is-right-collapsed [data-share-gutter="right"] .share-gutter-toggle svg {
+  transform: none;
+}
+
+.share-page.is-left-collapsed [data-share-gutter="left"] .share-gutter-label,
+.share-page.is-right-collapsed [data-share-gutter="right"] .share-gutter-label {
+  display: block;
+  position: absolute;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  writing-mode: vertical-rl;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Smooth width changes (collapsing / expanding); instant while dragging */
+.share-shell--notebook,
+.share-shell--notebook .kb-sidebar,
+.share-shell--notebook .share-right,
+.share-shell--notebook .share-gutter {
+  transition: width 160ms ease, flex-basis 160ms ease, background 160ms ease;
+}
+
+body.sps-resizing .share-shell--notebook,
+body.sps-resizing .share-shell--notebook .kb-sidebar,
+body.sps-resizing .share-shell--notebook .share-right,
+body.sps-resizing .share-shell--notebook .share-gutter {
+  transition: none;
+}
+
+body.sps-resizing {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+/* Single-doc share: no left rail, flat surface background */
+.share-shell--single-doc {
+  background: var(--surface);
+}
+
+.share-shell--single-doc + .share-footer {
+  background: var(--surface);
+}
+
+/* Desktop: sidebar shows tree only (tab bar hidden but keeps tree actions) */
+@media (min-width: 961px) {
+  .kb-side-tabs .kb-side-tab {
+    display: none;
+  }
+}
+
 /* ── Share search ── */
 
 .kb-search {
@@ -4546,6 +4848,23 @@ body.image-viewer-open {
 }
 
 @media (max-width: 960px) {
+  .share-right {
+    display: none;
+  }
+
+  .share-gutter {
+    display: none;
+  }
+
+  .share-shell--single-doc .share-right {
+    display: flex;
+    position: static;
+    width: 100%;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+
   .app-shell {
     display: block;
   }
@@ -5785,8 +6104,26 @@ body.image-viewer-open {
   }
 
   body.layout-share .share-toc-title,
-  body.layout-share .kb-side-title {
+  body.layout-share .kb-side-title,
+  body.layout-share .share-panel-title {
     color: #e2e8f0;
+  }
+
+  body.layout-share .share-recent-item.is-active {
+    background: rgba(122, 162, 255, 0.18);
+    border-color: rgba(122, 162, 255, 0.35);
+    color: #e2e8f0;
+  }
+
+  body.layout-share .share-gutter-toggle {
+    background: var(--surface);
+    border-color: var(--border);
+    color: #cbd5f5;
+  }
+
+  body.layout-share .share-gutter-toggle:hover {
+    color: #a4bfff;
+    border-color: rgba(122, 162, 255, 0.35);
   }
 
   body.layout-share .share-toc-list--footnotes .share-toc-link,

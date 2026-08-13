@@ -2420,6 +2420,111 @@
     setActive(defaultTab);
   };
 
+  const initShareColumnResize = () => {
+    const page = document.querySelector(".share-page");
+    if (!page) return;
+    const DESKTOP = window.matchMedia("(min-width: 961px)");
+    const STORAGE_KEY = "sps:share:columns";
+    const MIN_LEFT = 160;
+    const MAX_LEFT = 420;
+    const MIN_RIGHT = 160;
+    const MAX_RIGHT = 360;
+    const DEFAULT_STATE = {left: 260, right: 230, leftCollapsed: false, rightCollapsed: false};
+    let state = {...DEFAULT_STATE};
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      if (raw && typeof raw === "object") state = {...DEFAULT_STATE, ...raw};
+    } catch (err) {
+      /* ignore */
+    }
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const apply = () => {
+      if (!DESKTOP.matches) return;
+      page.style.setProperty(
+        "--sidebar-width",
+        `${state.leftCollapsed ? 0 : clamp(state.left, MIN_LEFT, MAX_LEFT)}px`,
+      );
+      page.style.setProperty(
+        "--right-width",
+        `${state.rightCollapsed ? 0 : clamp(state.right, MIN_RIGHT, MAX_RIGHT)}px`,
+      );
+      page.classList.toggle("is-left-collapsed", Boolean(state.leftCollapsed));
+      page.classList.toggle("is-right-collapsed", Boolean(state.rightCollapsed));
+    };
+    const save = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        /* ignore */
+      }
+    };
+    const syncMedia = () => {
+      if (DESKTOP.matches) {
+        apply();
+      } else {
+        document.body.classList.remove("sps-resizing");
+      }
+    };
+    if (typeof DESKTOP.addEventListener === "function") {
+      DESKTOP.addEventListener("change", syncMedia);
+    } else if (typeof DESKTOP.addListener === "function") {
+      DESKTOP.addListener(syncMedia);
+    }
+
+    let dragging = null;
+    const onMove = (event) => {
+      if (!dragging) return;
+      const rect = page.getBoundingClientRect();
+      if (dragging.side === "left") {
+        state.left = clamp(event.clientX - rect.left, MIN_LEFT, MAX_LEFT);
+        state.leftCollapsed = false;
+      } else {
+        state.right = clamp(rect.right - event.clientX, MIN_RIGHT, MAX_RIGHT);
+        state.rightCollapsed = false;
+      }
+      apply();
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = null;
+      document.body.classList.remove("sps-resizing");
+      save();
+    };
+    page.querySelectorAll("[data-share-gutter]").forEach((gutter) => {
+      const side = gutter.getAttribute("data-share-gutter");
+      gutter.addEventListener("pointerdown", (event) => {
+        if (event.target.closest("[data-share-gutter-toggle]")) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        if (typeof gutter.setPointerCapture === "function") {
+          try {
+            gutter.setPointerCapture(event.pointerId);
+          } catch (err) {
+            /* ignore */
+          }
+        }
+        dragging = {side};
+        document.body.classList.add("sps-resizing");
+      });
+    });
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+
+    page.querySelectorAll("[data-share-gutter-toggle]").forEach((btn) => {
+      const side = btn.getAttribute("data-share-gutter-toggle");
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (side === "left") state.leftCollapsed = !state.leftCollapsed;
+        else state.rightCollapsed = !state.rightCollapsed;
+        apply();
+        save();
+      });
+    });
+
+    syncMedia();
+  };
+
   const initShareDrawer = () => {
     const openBtn = document.querySelector("[data-share-drawer-open]");
     const backdrop = document.querySelector("[data-share-drawer-close]");
@@ -6312,6 +6417,7 @@ const initImageViewer = () => {
   initShareSearch();
   initSearchHighlight();
   initShareSidebarTabs();
+  initShareColumnResize();
   initShareDrawer();
   initShareDocNavigation();
   initImageViewer();
