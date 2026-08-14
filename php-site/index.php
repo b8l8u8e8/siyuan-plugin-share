@@ -8436,6 +8436,16 @@ function render_share_right_rail(array $docs, string $slug, bool $includeRecent 
     return $html;
 }
 
+function render_share_sidebar_info(int $total, bool $withHint = true): string {
+    $html  = '<div class="kb-side-info">';
+    $html .= '<div class="kb-side-count">共 ' . $total . ' 篇文档</div>';
+    if ($withHint) {
+        $html .= '<div class="kb-side-hint">拖拽边缘调宽度 · 圆钮收起/展开</div>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
 function render_doc_tree(array $nodes, string $slug, ?string $activeId = null, int $level = 0, string $path = '', string $assetBasePath = ''): string {
     if (empty($nodes)) {
         return '';
@@ -8639,6 +8649,7 @@ function route_share(string $slug, ?string $docId = null): void {
             $reportModalHtml = render_share_report_form($share, $viewer, (string)$activeDocId);
             $treeHtml = render_doc_tree(build_doc_tree($docs, $activeDocId), $slug, $activeDocId, 0, '', $assetBasePath);
             $sidebar = '<aside class="kb-sidebar" data-share-sidebar data-share-slug="' . htmlspecialchars($slug) . '">';
+            $sidebar .= render_share_sidebar_info(count($docs), true);
             $sidebar .= render_share_search_box($slug);
             $sidebar .= '<div class="kb-side-tabs" data-share-tabs data-share-default="tree">';
             $sidebar .= '<button class="kb-side-tab is-active" type="button" data-share-tab="tree">文档树</button>';
@@ -8752,6 +8763,7 @@ function route_share(string $slug, ?string $docId = null): void {
     if ($share['type'] === 'notebook') {
         $treeHtml = render_doc_tree(build_doc_tree($docs, $docId), $slug, $docId, 0, '', $assetBasePath);
         $sidebar = '<aside class="kb-sidebar" data-share-sidebar data-share-slug="' . htmlspecialchars($slug) . '">';
+        $sidebar .= render_share_sidebar_info(count($docs), (bool)$docId);
         $sidebar .= render_share_search_box($slug);
         $sidebar .= '<div class="kb-side-tabs" data-share-tabs data-share-default="tree">';
         $sidebar .= '<button class="kb-side-tab is-active" type="button" data-share-tab="tree">文档树</button>';

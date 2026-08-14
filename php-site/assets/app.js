@@ -2474,12 +2474,14 @@
     let dragging = null;
     const onMove = (event) => {
       if (!dragging) return;
-      const rect = page.getBoundingClientRect();
+      const delta = event.clientX - dragging.startX;
       if (dragging.side === "left") {
-        state.left = clamp(event.clientX - rect.left, MIN_LEFT, MAX_LEFT);
+        const base = dragging.fromCollapsed ? MIN_LEFT : dragging.startLeft;
+        state.left = clamp(base + delta, MIN_LEFT, MAX_LEFT);
         state.leftCollapsed = false;
       } else {
-        state.right = clamp(rect.right - event.clientX, MIN_RIGHT, MAX_RIGHT);
+        const base = dragging.fromCollapsed ? MIN_RIGHT : dragging.startRight;
+        state.right = clamp(base - delta, MIN_RIGHT, MAX_RIGHT);
         state.rightCollapsed = false;
       }
       apply();
@@ -2503,7 +2505,13 @@
             /* ignore */
           }
         }
-        dragging = {side};
+        dragging = {
+          side,
+          startX: event.clientX,
+          startLeft: state.left,
+          startRight: state.right,
+          fromCollapsed: side === "left" ? state.leftCollapsed : state.rightCollapsed,
+        };
         document.body.classList.add("sps-resizing");
       });
     });
@@ -2521,6 +2529,11 @@
         save();
       });
     });
+
+    page.classList.toggle(
+      "share-page--with-right",
+      Boolean(page.querySelector('[data-share-gutter="right"]')),
+    );
 
     syncMedia();
   };

@@ -1543,7 +1543,10 @@ body.app-side-open {
     90deg,
     var(--panel-bg) 0,
     var(--panel-bg) var(--sidebar-width),
-    var(--surface) var(--sidebar-width)
+    var(--surface) var(--sidebar-width),
+    var(--surface) calc(100% - var(--right-width)),
+    var(--panel-bg) calc(100% - var(--right-width)),
+    var(--panel-bg) 100%
   );
   padding: 16px 0 24px;
   width: 100%;
@@ -1661,7 +1664,10 @@ body.app-side-open {
     90deg,
     var(--panel-bg) 0,
     var(--panel-bg) var(--sidebar-width),
-    var(--surface) var(--sidebar-width)
+    var(--surface) var(--sidebar-width),
+    var(--surface) calc(100% - var(--right-width)),
+    var(--panel-bg) calc(100% - var(--right-width)),
+    var(--panel-bg) 100%
   );
 }
 @media (min-width: 961px) {
@@ -2473,9 +2479,10 @@ body.app-side-open {
 .share-gutter {
   flex: 0 0 10px;
   width: 10px;
-  position: relative;
+  position: sticky;
+  top: 24px;
+  height: calc(100vh - 48px);
   cursor: col-resize;
-  align-self: stretch;
   background: transparent;
 }
 
@@ -2579,9 +2586,12 @@ body.app-side-open {
   border-left: 1px solid var(--border);
 }
 
-.share-page.is-left-collapsed [data-share-gutter="left"] .share-gutter-toggle svg,
 .share-page.is-right-collapsed [data-share-gutter="right"] .share-gutter-toggle svg {
   transform: none;
+}
+
+.share-page.is-left-collapsed [data-share-gutter="left"] .share-gutter-toggle svg {
+  transform: rotate(180deg);
 }
 
 .share-page.is-left-collapsed [data-share-gutter="left"] .share-gutter-label,
@@ -2621,11 +2631,23 @@ body.sps-resizing {
 
 /* Single-doc share: no left rail, flat surface background */
 .share-shell--single-doc {
-  background: var(--surface);
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0,
+    var(--surface) calc(100% - var(--right-width)),
+    var(--panel-bg) calc(100% - var(--right-width)),
+    var(--panel-bg) 100%
+  );
 }
 
 .share-shell--single-doc + .share-footer {
-  background: var(--surface);
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0,
+    var(--surface) calc(100% - var(--right-width)),
+    var(--panel-bg) calc(100% - var(--right-width)),
+    var(--panel-bg) 100%
+  );
 }
 
 /* Desktop: sidebar shows tree only (tab bar hidden but keeps tree actions) */
@@ -2633,6 +2655,26 @@ body.sps-resizing {
   .kb-side-tabs .kb-side-tab {
     display: none;
   }
+}
+
+/* ── Share sidebar info (above search) ── */
+
+.kb-side-info {
+  flex: 0 0 auto;
+  padding: 0 2px 2px;
+}
+
+.kb-side-count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.kb-side-hint {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 /* ── Share search ── */
@@ -3508,6 +3550,12 @@ body.sps-footnote-dragging {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+
+@media (min-width: 961px) {
+  .share-page.share-page--with-right .scroll-top {
+    right: calc(var(--right-width) + 70px);
+  }
 }
 
 .kb-header {
