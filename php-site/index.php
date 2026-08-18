@@ -73,6 +73,75 @@ if (function_exists('date_default_timezone_set')) {
 
 require_once __DIR__ . '/vendor/Parsedown.php';
 
+class ShareParsedown extends Parsedown {
+    private const CALLOUT_META = [
+        'note' => ['label' => 'Note', 'icon' => '🖊️'],
+        'tip' => ['label' => 'Tip', 'icon' => '💡'],
+        'important' => ['label' => 'Important', 'icon' => '❗'],
+        'warning' => ['label' => 'Warning', 'icon' => '⚠️'],
+        'caution' => ['label' => 'Caution', 'icon' => '🚨'],
+        'info' => ['label' => 'Info', 'icon' => 'ℹ️'],
+    ];
+
+    protected function blockQuote($Line) {
+        if (!preg_match('/^>[ ]?+(.*+)/', $Line['text'], $matches)) {
+            return null;
+        }
+        $content = (string)$matches[1];
+        if (preg_match('/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*(.*)$/i', $content, $cm)) {
+            $typeKey = strtolower($cm[1]);
+            return [
+                'element' => [
+                    'name' => 'div',
+                    'attributes' => ['class' => 'md-alert md-alert--' . $typeKey],
+                    'handler' => [
+                        'function' => 'calloutAlertElements',
+                        'argument' => (array)$content,
+                        'destination' => 'elements',
+                    ],
+                ],
+            ];
+        }
+        return [
+            'element' => [
+                'name' => 'blockquote',
+                'handler' => [
+                    'function' => 'linesElements',
+                    'argument' => (array)$content,
+                    'destination' => 'elements',
+                ],
+            ],
+        ];
+    }
+
+    protected function calloutAlertElements(array $lines, array $nonNestables = []) {
+        $bodyLines = $lines;
+        $header = (string)array_shift($bodyLines);
+        if (!preg_match('/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO)\]\s*(.*)$/i', $header, $m)) {
+            return $this->linesElements($lines, $nonNestables);
+        }
+        $typeKey = strtolower($m[1]);
+        $meta = self::CALLOUT_META[$typeKey] ?? self::CALLOUT_META['note'];
+        $titleRaw = trim($m[2]);
+        $iconElement = ['name' => 'span', 'attributes' => ['class' => 'md-alert__icon'], 'text' => $meta['icon']];
+        if ($titleRaw !== '') {
+            $labelElements = $this->lineElements($titleRaw, $nonNestables);
+            $labelElement = is_array($labelElements)
+                ? ['name' => 'span', 'attributes' => ['class' => 'md-alert__label'], 'elements' => $labelElements]
+                : ['name' => 'span', 'attributes' => ['class' => 'md-alert__label'], 'text' => $titleRaw];
+        } else {
+            $labelElement = ['name' => 'span', 'attributes' => ['class' => 'md-alert__label'], 'text' => $meta['label']];
+        }
+        $titleElement = [
+            'name' => 'div',
+            'attributes' => ['class' => 'md-alert__title'],
+            'elements' => [$iconElement, $labelElement],
+        ];
+        $bodyElements = $this->linesElements($bodyLines, $nonNestables);
+        return array_merge([$titleElement], $bodyElements);
+    }
+}
+
 function base_path(): string {
     $script = $_SERVER['SCRIPT_NAME'] ?? '';
     $dir = str_replace('\\', '/', dirname($script));
@@ -399,6 +468,10 @@ function migrate(PDO $pdo): void {
     ensure_column($pdo, 'shares', 'visitor_limit', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'shares', 'size_bytes', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'shares', 'comment_notify', 'INTEGER NOT NULL DEFAULT 0');
+    ensure_column($pdo, 'shares', 'announcement_mode', 'TEXT NOT NULL DEFAULT \'none\'');
+    ensure_column($pdo, 'shares', 'announcement_title', 'TEXT');
+    ensure_column($pdo, 'shares', 'announcement_content', 'TEXT');
+    ensure_column($pdo, 'shares', 'announcement_doc_id', 'TEXT');
     ensure_column($pdo, 'share_reports', 'report_email', 'TEXT');
     ensure_column($pdo, 'share_uploads', 'visitor_limit', 'INTEGER NOT NULL DEFAULT 0');
     ensure_column($pdo, 'share_uploads', 'upload_mode', 'TEXT');
@@ -486,6 +559,7 @@ function seed_default_settings(PDO $pdo): void {
     ensure_setting($pdo, 'site_custom_js', '');
     ensure_setting($pdo, 'access_stats_default_enabled', '1');
     ensure_setting($pdo, 'access_stats_default_retention_days', '7');
+    ensure_setting($pdo, 'site_tips', '');
 }
 
 function seed_default_admin(PDO $pdo): void {
@@ -1225,11 +1299,14 @@ function render_page(string $title, string $content, ?array $user = null, string
     } elseif ($layout === 'share') {
         echo "<div class='share-page'>";
         echo render_share_icon_defs();
+        if (!empty($options['announcement'])) {
+            echo $options['announcement'];
+        }
         echo $content;
         echo "<footer class='share-footer'>由 <a href='https://github.com/b8l8u8e8/siyuan-plugin-share' target='_blank' rel='noopener noreferrer'>b8l8u8e8</a> 提供支持</footer>";
         echo "<button class='share-side-trigger' type='button' data-share-drawer-open aria-label='打开侧边栏'><svg viewBox='0 0 24 24' aria-hidden='true'><path fill='currentColor' d='M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z'/></svg><span>导航</span></button>";
         echo "<div class='share-side-backdrop' data-share-drawer-close></div>";
-        echo "<button class='scroll-top' type='button' data-scroll-top aria-label='回到顶部'><svg viewBox='0 0 24 24' aria-hidden='true'><path fill='currentColor' d='M12 2c-2.76 0-5 2.24-5 5v2.5L4 13l4.5 1L12 22l3.5-8L20 13l-3-3.5V7c0-2.76-2.24-5-5-5zm0 3a2 2 0 0 1 2 2v1.5l-2 2-2-2V7a2 2 0 0 1 2-2z'/></svg></button>";
+        echo "<button class='scroll-top' type='button' data-scroll-top data-tip='回到顶部' aria-label='回到顶部'><svg viewBox='0 0 24 24' aria-hidden='true'><path fill='currentColor' d='M12 2c-2.76 0-5 2.24-5 5v2.5L4 13l4.5 1L12 22l3.5-8L20 13l-3-3.5V7c0-2.76-2.24-5-5-5zm0 3a2 2 0 0 1 2 2v1.5l-2 2-2-2V7a2 2 0 0 1 2-2z'/></svg></button>";
         echo "</div>";
     } elseif ($user) {
         $navItems = [
@@ -5104,6 +5181,10 @@ function handle_api(string $path): void {
                 'expiresAt' => $row['expires_at'] ? ((int)$row['expires_at'] * 1000) : null,
                 'visitorLimit' => (int)($row['visitor_limit'] ?? 0),
                 'includeChildren' => ((string)($row['type'] ?? '') === 'doc') && ((int)($row['doc_count'] ?? 0) > 1),
+                'announcementMode' => (string)($row['announcement_mode'] ?? 'none'),
+                'announcementTitle' => (string)($row['announcement_title'] ?? ''),
+                'announcementContent' => (string)($row['announcement_content'] ?? ''),
+                'announcementDocId' => (string)($row['announcement_doc_id'] ?? ''),
                 'path' => '/s/' . $row['slug'],
                 'url' => share_url($row['slug']),
             ];
@@ -5291,8 +5372,37 @@ function handle_api(string $path): void {
             $newSlug = $slug;
         }
 
-        $stmt = $pdo->prepare('UPDATE shares SET slug = :slug, password_hash = :password_hash, expires_at = :expires_at, visitor_limit = :visitor_limit, updated_at = :updated_at WHERE id = :id AND user_id = :uid');
-        $stmt->execute([
+        $annSql = '';
+        $annParams = [];
+        $annMode = (string)($share['announcement_mode'] ?? 'none');
+        if (array_key_exists('announcementMode', $payload)) {
+            $annMode = (string)($payload['announcementMode'] ?? 'none');
+            if (!in_array($annMode, ['none', 'manual', 'doc'], true)) {
+                $annMode = 'none';
+            }
+            $annTitle = trim((string)($payload['announcementTitle'] ?? ''));
+            $annContent = trim((string)($payload['announcementContent'] ?? ''));
+            $annDocId = trim((string)($payload['announcementDocId'] ?? ''));
+            if ($annTitle === '__KEEP__') {
+                $annTitle = (string)($share['announcement_title'] ?? '');
+            }
+            if ($annContent === '__KEEP__') {
+                $annContent = (string)($share['announcement_content'] ?? '');
+            }
+            if ($annDocId === '__KEEP__') {
+                $annDocId = (string)($share['announcement_doc_id'] ?? '');
+            }
+            $annSql = ', announcement_mode = :ann_mode, announcement_title = :ann_title, announcement_content = :ann_content, announcement_doc_id = :ann_doc_id';
+            $annParams = [
+                ':ann_mode' => $annMode,
+                ':ann_title' => $annTitle,
+                ':ann_content' => $annContent,
+                ':ann_doc_id' => $annDocId,
+            ];
+        }
+
+        $stmt = $pdo->prepare('UPDATE shares SET slug = :slug, password_hash = :password_hash, expires_at = :expires_at, visitor_limit = :visitor_limit' . $annSql . ', updated_at = :updated_at WHERE id = :id AND user_id = :uid');
+        $stmt->execute(array_merge([
             ':slug' => $newSlug,
             ':password_hash' => $passwordHash,
             ':expires_at' => $expiresValue,
@@ -5300,7 +5410,7 @@ function handle_api(string $path): void {
             ':updated_at' => now(),
             ':id' => $shareId,
             ':uid' => $user['id'],
-        ]);
+        ], $annParams));
         if ($visitorValue > 0) {
             seed_share_visitors_from_logs($shareId);
         }
@@ -5311,6 +5421,7 @@ function handle_api(string $path): void {
             'hasPassword' => !empty($passwordHash),
             'expiresAt' => $expiresValue ? ($expiresValue * 1000) : null,
             'visitorLimit' => $visitorValue,
+            'announcementMode' => $annMode,
         ]]);
     }
 
@@ -7619,7 +7730,7 @@ function sanitize_share_html(string $html): string {
 function render_markdown(string $markdown): string {
     static $parser = null;
     if (!$parser) {
-        $parser = new Parsedown();
+        $parser = new ShareParsedown();
         if (method_exists($parser, 'setSafeMode')) {
             $parser->setSafeMode(false);
         }
@@ -8446,6 +8557,105 @@ function render_share_sidebar_info(int $total, bool $withHint = true): string {
     return $html;
 }
 
+function render_share_announcement(array $share, array $docs, string $assetBasePath, int $shareId, callable $loadDocMarkdown, string $slug = ''): string {
+    $mode = (string)($share['announcement_mode'] ?? 'none');
+    $announceTitle = '';
+    $announceBody = '';
+    $announceSource = '';
+    $hasAnnounce = false;
+    if (in_array($mode, ['manual', 'doc'], true)) {
+        $title = '';
+        $bodyHtml = '';
+        if ($mode === 'manual') {
+            $content = trim((string)($share['announcement_content'] ?? ''));
+            if ($content !== '') {
+                $title = trim((string)($share['announcement_title'] ?? ''));
+                $announceSource = $content;
+                $bodyHtml = render_markdown($content);
+            }
+        } else {
+            $docId = (string)($share['announcement_doc_id'] ?? '');
+            $doc = null;
+            if ($docId !== '') {
+                foreach ($docs as $item) {
+                    if ((string)($item['doc_id'] ?? '') === $docId) {
+                        $doc = $item;
+                        break;
+                    }
+                }
+            }
+            if ($doc) {
+                $docTitleRaw = trim((string)($doc['title'] ?? '')) ?: $docId;
+                $front = extract_front_matter($loadDocMarkdown($doc));
+                $markdown = rewrite_asset_links((string)$front['body'], $assetBasePath);
+                $markdown = strip_duplicate_title_heading($markdown, $docTitleRaw);
+                $markdown = replace_custom_emoji_tokens($markdown, $shareId, $assetBasePath);
+                $markdown = insert_adjacent_emoji_image_spacing($markdown);
+                $announceSource = $markdown;
+                $bodyHtml = render_markdown($markdown);
+                $title = $docTitleRaw;
+            }
+        }
+        if ($bodyHtml !== '') {
+            $hasAnnounce = true;
+            $announceTitle = $title;
+            $announceBody = $bodyHtml;
+        }
+    }
+    $tipsRaw = trim((string)get_setting('site_tips', ''));
+    $hasTips = $tipsRaw !== '';
+    if (!$hasAnnounce && !$hasTips) {
+        return '';
+    }
+    $megaphoneIcon = '<svg class="share-announce-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9a1 1 0 0 1 1-1h2l8-4v16l-8-4H5a1 1 0 0 1-1-1V9zm14.5-.5a5 5 0 0 1 0 7M18 6.2a8 8 0 0 1 0 11.6"/></svg>';
+    $lightbulbIcon = '<svg class="share-announce-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7zM9 21h6v-2H9v2z"/></svg>';
+    $closeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3 10.6 10.6 16.9 4.3z"/></svg>';
+    $html = '<div class="share-announce" data-share-announce data-announce-slug="' . htmlspecialchars($slug) . '">';
+    $html .= '<div class="share-announce-backdrop" data-share-announce-close></div>';
+    if ($hasAnnounce) {
+        $announceLabel = htmlspecialchars($announceTitle !== '' ? $announceTitle : '公告');
+        $html .= '<div class="share-announce-modal share-announce-modal--announce" role="dialog" aria-modal="true" aria-label="' . $announceLabel . '" data-share-announce-panel="announce">';
+        $html .= '<div class="share-announce-modal__header">';
+        $html .= $megaphoneIcon;
+        $html .= '<span class="share-announce-modal__title">' . $announceLabel . '</span>';
+        $html .= '<button class="share-announce-modal__close" type="button" data-share-announce-close aria-label="关闭公告">' . $closeIcon . '</button>';
+        $html .= '</div>';
+        $html .= '<div class="share-announce-modal__layout" data-announce-layout>';
+        $tocChevronIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.6 4.6 15 12l-6.4 7.4-1.4-1.2L12.2 12 7.2 5.8z"/></svg>';
+        $html .= '<aside class="share-announce-toc" data-announce-toc hidden>';
+        $html .= '<div class="share-announce-toc__head">';
+        $html .= '<span class="share-announce-toc__title">目录</span>';
+        $html .= '<button class="share-announce-toc__collapse" type="button" data-announce-toc-collapse aria-label="收起目录" title="收起目录" aria-expanded="true">' . $tocChevronIcon . '</button>';
+        $html .= '</div>';
+        $html .= '<div class="share-announce-toc__body" data-announce-toc-body></div>';
+        $html .= '</aside>';
+        $html .= '<button class="share-announce-toc-reopen" type="button" data-announce-toc-reopen aria-label="展开目录" title="展开目录" hidden>' . $tocChevronIcon . '</button>';
+        $html .= '<div class="share-announce-toc__resizer" data-announce-toc-resize aria-hidden="true" hidden></div>';
+        $html .= '<div class="share-announce-modal__body markdown-body" data-share-announce-body data-md-id="share-announce">' . $announceBody . '</div>';
+        $html .= '</div>';
+        $html .= '<textarea class="markdown-source" data-md-id="share-announce" hidden>' . htmlspecialchars($announceSource) . '</textarea>';
+        $html .= '</div>';
+    }
+    if ($hasTips) {
+        $html .= '<div class="share-announce-modal share-announce-modal--tips" role="dialog" aria-modal="true" aria-label="使用技巧" data-share-announce-panel="tips">';
+        $html .= '<div class="share-announce-modal__header">';
+        $html .= $lightbulbIcon;
+        $html .= '<span class="share-announce-modal__title">使用技巧</span>';
+        $html .= '<button class="share-announce-modal__close" type="button" data-share-announce-close aria-label="关闭使用技巧">' . $closeIcon . '</button>';
+        $html .= '</div>';
+        $html .= '<div class="share-announce-modal__body markdown-body" data-share-announce-body>' . render_markdown($tipsRaw) . '</div>';
+        $html .= '</div>';
+    }
+    if ($hasAnnounce) {
+        $html .= '<button class="share-announce-ball" type="button" data-share-announce-toggle="announce" data-tip="打开公告" aria-label="打开公告" aria-expanded="false">' . $megaphoneIcon . '</button>';
+    }
+    if ($hasTips) {
+        $html .= '<button class="share-tips-ball" type="button" data-share-announce-toggle="tips" data-tip="使用技巧" aria-label="使用技巧" aria-expanded="false">' . $lightbulbIcon . '</button>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
 function render_doc_tree(array $nodes, string $slug, ?string $activeId = null, int $level = 0, string $path = '', string $assetBasePath = ''): string {
     if (empty($nodes)) {
         return '';
@@ -8614,6 +8824,7 @@ function route_share(string $slug, ?string $docId = null): void {
     };
 
     $assetBasePath = base_path() . '/uploads/shares/' . $shareId . '/';
+    $announcementHtml = render_share_announcement($share, $docs, $assetBasePath, (int)$shareId, $loadDocMarkdown, $slug);
 
     if ($share['type'] === 'doc') {
         $hasMultipleDocs = count($docs) > 1;
@@ -8722,7 +8933,7 @@ function route_share(string $slug, ?string $docId = null): void {
             $content .= $mainHtml;
             $content .= render_share_right_rail($docs, $slug, true);
             $content .= '</div>';
-            render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
+            render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true, 'announcement' => $announcementHtml]);
             return;
         }
 
@@ -8757,7 +8968,7 @@ function route_share(string $slug, ?string $docId = null): void {
         $content .= '</div></div>';
         $content .= render_share_right_rail($docs, $slug, false);
         $content .= '</div>';
-        render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
+        render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true, 'announcement' => $announcementHtml]);
     }
 
     if ($share['type'] === 'notebook') {
@@ -8847,7 +9058,7 @@ function route_share(string $slug, ?string $docId = null): void {
             $content .= $mainHtml;
             $content .= render_share_right_rail($docs, $slug, true);
             $content .= '</div>';
-            render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
+            render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true, 'announcement' => $announcementHtml]);
         }
 
         if (!$docId) {
@@ -8865,7 +9076,7 @@ function route_share(string $slug, ?string $docId = null): void {
             $content .= $mainHtml;
             $content .= '</div>';
             record_share_access($share, null, $shareTitleRaw);
-            render_page($shareTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
+            render_page($shareTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true, 'announcement' => $announcementHtml]);
         }
 
         $rows = '';
@@ -10817,6 +11028,7 @@ if ($path === '/admin') {
     $siteContactEmail = get_setting('site_contact_email', '');
     $siteBaseUrl = get_setting('site_base_url', '');
     $siteHeadHtml = get_setting('site_head_html', '');
+    $siteTips = get_setting('site_tips', '');
     $siteCustomCssEnabled = get_bool_setting('site_custom_css_enabled', true);
     $siteCustomCss = get_setting('site_custom_css', '');
     $siteCustomJsEnabled = get_bool_setting('site_custom_js_enabled', false);
@@ -11022,6 +11234,11 @@ if ($path === '/admin') {
     $content .= '<label>HTML Head 插入内容</label>';
     $content .= '<textarea class="input" name="site_head_html" rows="4" placeholder="例如：&lt;script src=&quot;https://example.com/xxx.js&quot;&gt;&lt;/script&gt;">' . htmlspecialchars((string)$siteHeadHtml) . '</textarea>';
     $content .= '<div class="muted">会插入到页面 &lt;head&gt; 中，可用于统计脚本。</div>';
+    $content .= '</div>';
+    $content .= '<div style="margin-top:12px">';
+    $content .= '<label>使用技巧（Markdown，支持思源 Callout）</label>';
+    $content .= '<textarea class="input" name="site_tips" rows="6" placeholder="示例：&#10;&gt; [!tip] 快速开始&#10;&gt; 分享页右上角可切换文档、搜索和目录。">' . htmlspecialchars((string)$siteTips) . '</textarea>';
+    $content .= '<div class="muted">显示在分享页右下角紫色「使用技巧」悬浮按钮中，留空则不显示。</div>';
     $content .= '</div>';
     $content .= '<div style="margin-top:12px">';
     $content .= '<label>自定义 CSS<button class="link-button" type="button" data-report-open data-report-target="site-custom-css-help">示例</button></label>';
@@ -11470,6 +11687,12 @@ if ($path === '/admin') {
             $content .= '<td>' . htmlspecialchars($size) . '</td>';
             $content .= '<td>' . htmlspecialchars($share['updated_at']) . '</td>';
             $content .= '<td class="actions">';
+            $content .= '<button class="button" type="button" data-share-announce-edit="1"'
+                . ' data-share-id="' . (int)$share['id'] . '"'
+                . ' data-share-announce-mode="' . htmlspecialchars((string)($share['announcement_mode'] ?? 'none'), ENT_QUOTES) . '"'
+                . ' data-share-announce-title="' . htmlspecialchars((string)($share['announcement_title'] ?? ''), ENT_QUOTES) . '"'
+                . ' data-share-announce-content="' . htmlspecialchars((string)($share['announcement_content'] ?? ''), ENT_QUOTES) . '"'
+                . ' data-share-announce-doc="' . htmlspecialchars((string)($share['announcement_doc_id'] ?? ''), ENT_QUOTES) . '">公告</button>';
             if ($share['deleted_at']) {
                 $content .= '<form method="post" action="' . base_path() . '/admin/share-restore" class="inline-form">';
                 $content .= '<input type="hidden" name="csrf" value="' . csrf_token() . '">';
@@ -11513,6 +11736,38 @@ if ($path === '/admin') {
     $content .= '</select>';
     $content .= '<label>页码</label><input class="input small" type="number" name="share_page" min="1" max="' . $sharePages . '" value="' . $sharePage . '">';
     $content .= '<button class="button" type="submit">跳转</button>';
+    $content .= '</form>';
+    $content .= '</div>';
+    $content .= '</div>';
+
+    $content .= '<div class="modal" data-share-announce-modal hidden>';
+    $content .= '<div class="modal-backdrop" data-modal-close></div>';
+    $content .= '<div class="modal-card">';
+    $content .= '<div class="modal-header">设置分享公告</div>';
+    $content .= '<form method="post" action="' . base_path() . '/admin/share-announcement/update" data-share-announce-form>';
+    $content .= '<input type="hidden" name="csrf" value="' . csrf_token() . '">';
+    $content .= '<input type="hidden" name="share_id" value="" data-announce-share-id>';
+    $content .= '<div class="modal-body">';
+    $content .= '<div class="muted">公告会显示在分享页顶部（仅分享内文档可见）。引用笔记模式的标题取笔记标题，渲染效果与正文一致。</div>';
+    $content .= '<label>模式</label>';
+    $content .= '<select class="input" name="announcement_mode" data-announce-mode>'
+        . '<option value="none">不显示</option>'
+        . '<option value="manual">手动填写</option>'
+        . '<option value="doc">引用笔记</option>'
+        . '</select>';
+    $content .= '<div data-announce-fields="manual" hidden>';
+    $content .= '<label>标题（可选，留空显示“公告”）</label><input class="input" name="announcement_title" placeholder="例如：更新公告" data-announce-title>';
+    $content .= '<label>内容（支持 Markdown）</label><textarea class="input" name="announcement_content" rows="6" placeholder="支持与正文相同的 Markdown 语法" data-announce-content></textarea>';
+    $content .= '</div>';
+    $content .= '<div data-announce-fields="doc" hidden>';
+    $content .= '<label>引用笔记</label>';
+    $content .= '<select class="input" name="announcement_doc_id" data-announce-doc-select><option value="">请选择分享内的笔记</option></select>';
+    $content .= '</div>';
+    $content .= '</div>';
+    $content .= '<div class="modal-actions">';
+    $content .= '<button class="button ghost" type="button" data-modal-close>取消</button>';
+    $content .= '<button class="button primary" type="submit">保存</button>';
+    $content .= '</div>';
     $content .= '</form>';
     $content .= '</div>';
     $content .= '</div>';
@@ -11794,6 +12049,7 @@ if ($path === '/admin/settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $siteContactEmail = trim((string)($_POST['site_contact_email'] ?? ''));
     $siteBaseUrl = trim((string)($_POST['site_base_url'] ?? ''));
     $siteHeadHtml = trim((string)($_POST['site_head_html'] ?? ''));
+    $siteTips = str_replace(["\r\n", "\r"], "\n", (string)($_POST['site_tips'] ?? ''));
     $siteCustomCssEnabled = isset($_POST['site_custom_css_enabled']) ? '1' : '0';
     $siteCustomJsEnabled = isset($_POST['site_custom_js_enabled']) ? '1' : '0';
     $siteCustomCss = str_replace(["\r\n", "\r"], "\n", (string)($_POST['site_custom_css'] ?? ''));
@@ -11812,6 +12068,10 @@ if ($path === '/admin/settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('error', '自定义 CSS / JS 过长，单项最多 200KB。');
         redirect('/admin#settings');
     }
+    if (strlen($siteTips) > 200000) {
+        flash('error', '使用技巧内容过长，最多 200KB。');
+        redirect('/admin#settings');
+    }
     set_setting('allow_registration', $allowRegistration);
     set_setting('captcha_enabled', $captchaEnabled);
     set_setting('email_verification_enabled', $emailVerifyEnabled);
@@ -11825,6 +12085,7 @@ if ($path === '/admin/settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     set_setting('site_contact_email', $siteContactEmail);
     set_setting('site_base_url', $siteBaseUrl);
     set_setting('site_head_html', $siteHeadHtml);
+    set_setting('site_tips', $siteTips);
     set_setting('site_custom_css_enabled', $siteCustomCssEnabled);
     set_setting('site_custom_css', $siteCustomCss);
     set_setting('site_custom_js_enabled', $siteCustomJsEnabled);
@@ -12668,6 +12929,72 @@ if ($path === '/admin/comment/edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     flash('info', '评论已更新');
     redirect('/admin#scan');
+}
+
+if ($path === '/admin/share-docs-json' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    require_admin();
+    $shareId = (int)($_GET['share_id'] ?? 0);
+    if ($shareId <= 0) {
+        api_response(400, null, '缺少分享ID');
+    }
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT id, doc_id, title, hpath FROM share_docs WHERE share_id = :sid ORDER BY sort_order ASC, id ASC');
+    $stmt->execute([':sid' => $shareId]);
+    $docs = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $docs[] = [
+            'id' => (int)$row['id'],
+            'docId' => (string)$row['doc_id'],
+            'title' => (string)$row['title'],
+            'hpath' => (string)$row['hpath'],
+        ];
+    }
+    api_response(200, ['docs' => $docs]);
+}
+
+if ($path === '/admin/share-announcement/update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_admin();
+    check_csrf();
+    $shareId = (int)($_POST['share_id'] ?? 0);
+    $mode = trim((string)($_POST['announcement_mode'] ?? 'none'));
+    if ($shareId <= 0) {
+        flash('error', '缺少分享ID');
+        redirect('/admin#shares');
+    }
+    if (!in_array($mode, ['none', 'manual', 'doc'], true)) {
+        $mode = 'none';
+    }
+    $title = trim((string)($_POST['announcement_title'] ?? ''));
+    $content = trim((string)($_POST['announcement_content'] ?? ''));
+    $docId = trim((string)($_POST['announcement_doc_id'] ?? ''));
+    $titleLen = function_exists('mb_strlen') ? mb_strlen($title, 'UTF-8') : strlen($title);
+    $contentLen = function_exists('mb_strlen') ? mb_strlen($content, 'UTF-8') : strlen($content);
+    if ($titleLen > 120) {
+        flash('error', '公告标题过长（最多 120 字）');
+        redirect('/admin#shares');
+    }
+    if ($contentLen > 20000) {
+        flash('error', '公告内容过长（最多 20000 字）');
+        redirect('/admin#shares');
+    }
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT id FROM shares WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $shareId]);
+    if (!$stmt->fetchColumn()) {
+        flash('error', '分享不存在');
+        redirect('/admin#shares');
+    }
+    $update = $pdo->prepare('UPDATE shares SET announcement_mode = :mode, announcement_title = :title, announcement_content = :content, announcement_doc_id = :doc_id, updated_at = :updated_at WHERE id = :id');
+    $update->execute([
+        ':mode' => $mode,
+        ':title' => $title,
+        ':content' => $content,
+        ':doc_id' => $docId,
+        ':updated_at' => now(),
+        ':id' => $shareId,
+    ]);
+    flash('info', '公告已保存');
+    redirect('/admin#shares');
 }
 
 if ($path === '/admin/reset-data' && $_SERVER['REQUEST_METHOD'] === 'POST') {

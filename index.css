@@ -16,6 +16,36 @@
   max-width: 100%;
 }
 
+.sps-share-dialog .b3-dialog__container {
+  max-height: min(90vh, 720px);
+}
+
+.sps-share-dialog .b3-dialog__body {
+  overscroll-behavior: contain;
+}
+
+.sps-share-dialog .b3-dialog__action {
+  gap: 8px;
+}
+
+.sps-share-announce-fields {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sps-share-announce-fields[hidden] {
+  display: none;
+}
+
+.sps-share-announce-fields input,
+.sps-share-announce-fields textarea,
+.sps-share-announce-fields select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .siyuan-plugin-share__section {
   border: 1px solid var(--b3-theme-surface-lighter);
   border-radius: 6px;
