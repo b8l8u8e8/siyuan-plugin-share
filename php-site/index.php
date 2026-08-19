@@ -8972,6 +8972,18 @@ function route_share(string $slug, ?string $docId = null): void {
     }
 
     if ($share['type'] === 'notebook') {
+        if (!$docId
+            && (string)($share['announcement_mode'] ?? 'none') === 'doc'
+            && (string)($share['announcement_doc_id'] ?? '') !== ''
+        ) {
+            $announceDocId = (string)$share['announcement_doc_id'];
+            foreach ($docs as $item) {
+                if ((string)($item['doc_id'] ?? '') === $announceDocId) {
+                    $docId = $announceDocId;
+                    break;
+                }
+            }
+        }
         $treeHtml = render_doc_tree(build_doc_tree($docs, $docId), $slug, $docId, 0, '', $assetBasePath);
         $sidebar = '<aside class="kb-sidebar" data-share-sidebar data-share-slug="' . htmlspecialchars($slug) . '">';
         $sidebar .= render_share_sidebar_info(count($docs), (bool)$docId);
@@ -9063,20 +9075,50 @@ function route_share(string $slug, ?string $docId = null): void {
 
         if (!$docId) {
             $touchShareAccess();
-            $mainHtml = '<div class="kb-main"><div class="share-empty">请先在文档树里面先打开一个文档</div></div>';
+            $reportTrigger = render_share_report_trigger($share);
+            $shareMetaHtml = render_share_stats($share, $reportTrigger);
+            $announceTitle = '';
+            $announceMarkdown = '';
+            if ((string)($share['announcement_mode'] ?? 'none') === 'manual') {
+                $announceMarkdown = trim((string)($share['announcement_content'] ?? ''));
+                if ($announceMarkdown !== '') {
+                    $announceTitle = trim((string)($share['announcement_title'] ?? '')) ?: '公告';
+                }
+            }
+            if ($announceMarkdown !== '') {
+                $announceTitleEsc = htmlspecialchars($announceTitle);
+                $mainHtml = '<div class="kb-main">';
+                $mainHtml .= '<div class="share-article" data-share-view="preview">';
+                $mainHtml .= '<div class="kb-header">';
+                $mainHtml .= '<div class="kb-breadcrumbs"><a class="kb-back" href="' . $base . '/s/' . $slug . '" data-doc-id="" data-share-nav="doc">目录</a><span>公告</span></div>';
+                $mainHtml .= '<div class="kb-title-row">';
+                $mainHtml .= '<h1 class="kb-title">' . $announceTitleEsc . '</h1>';
+                $mainHtml .= '<button class="button ghost share-view-toggle" type="button" data-share-toggle aria-pressed="false">源码</button>';
+                $mainHtml .= '</div>';
+                $mainHtml .= $shareMetaHtml;
+                $mainHtml .= '</div>';
+                $mainHtml .= '<div class="markdown-body" data-md-id="doc">' . render_markdown($announceMarkdown) . '</div>';
+                $mainHtml .= '<textarea class="markdown-source" data-md-id="doc" readonly spellcheck="false" aria-label="Markdown 源码">' . htmlspecialchars($announceMarkdown) . '</textarea>';
+                $mainHtml .= '</div></div>';
+            } else {
+                $mainHtml = '<div class="kb-main"><div class="share-empty">请先在文档树里面先打开一个文档</div></div>';
+            }
             if ($isPartial) {
                 api_response(200, [
-                    'title' => $shareTitleRaw,
+                    'title' => $announceMarkdown !== '' ? $announceTitle : $shareTitleRaw,
                     'docId' => '',
                     'html' => $mainHtml,
                 ]);
             }
             $content = '<div class="share-shell share-shell--notebook" data-share-doc-id="">';
             $content .= $sidebar;
+            $content .= render_share_gutter('left', '文档树');
             $content .= $mainHtml;
+            $content .= render_share_right_rail($docs, $slug, true);
             $content .= '</div>';
-            record_share_access($share, null, $shareTitleRaw);
-            render_page($shareTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true, 'announcement' => $announcementHtml]);
+            $pageTitle = $announceMarkdown !== '' ? $announceTitle : $shareTitleRaw;
+            record_share_access($share, null, $pageTitle);
+            render_page($pageTitle, $content, null, '', ['layout' => 'share', 'markdown' => true, 'announcement' => $announcementHtml]);
         }
 
         $rows = '';
