@@ -773,6 +773,18 @@ function extract_front_matter(string $markdown): array {
     return ['meta' => $meta, 'body' => $body];
 }
 
+function share_doc_updated_at(string $markdown): string {
+    $front = extract_front_matter($markdown);
+    $raw = (string)($front['meta']['lastmod'] ?? $front['meta']['updated'] ?? $front['meta']['modified'] ?? $front['meta']['last_modified'] ?? '');
+    if ($raw !== '') {
+        $ts = strtotime($raw);
+        if ($ts) {
+            return date('Y-m-d H:i:s', $ts);
+        }
+    }
+    return '';
+}
+
 function format_meta_date(?string $raw): string {
     if (!$raw) {
         return '';
@@ -6310,7 +6322,7 @@ function handle_api(string $path): void {
                         ':content_hash' => normalize_hash_hex($row['content_hash'] ?? ''),
                         ':meta_hash' => normalize_hash_hex($row['meta_hash'] ?? ''),
                         ':created_at' => now(),
-                        ':updated_at' => now(),
+                        ':updated_at' => share_doc_updated_at($docMarkdown) ?: now(),
                     ]);
                     unset($docMarkdown);
                 }
@@ -6385,7 +6397,7 @@ function handle_api(string $path): void {
                         ':size_bytes' => $row['size_bytes'] ?? 0,
                         ':content_hash' => normalize_hash_hex($row['content_hash'] ?? ''),
                         ':meta_hash' => normalize_hash_hex($row['meta_hash'] ?? ''),
-                        ':updated_at' => now(),
+                        ':updated_at' => share_doc_updated_at($docMarkdown) ?: now(),
                     ];
                     unset($docMarkdown);
                     if ($docRowId > 0) {
@@ -6743,7 +6755,7 @@ function handle_api(string $path): void {
                 ':content_hash' => normalize_hash_hex($row['contentHash'] ?? ''),
                 ':meta_hash' => normalize_hash_hex($row['metaHash'] ?? ''),
                 ':created_at' => now(),
-                ':updated_at' => now(),
+                ':updated_at' => share_doc_updated_at((string)($row['markdown'] ?? '')) ?: now(),
             ]);
         }
 
@@ -6964,12 +6976,12 @@ function handle_api(string $path): void {
                 ':parent_id' => $row['parentId'] !== '' ? $row['parentId'] : null,
                 ':sort_index' => $row['sortIndex'],
                 ':markdown' => $row['markdown'],
-                ':sort_order' => (int)$row['sortOrder'],
+                ':sort_order' => $row['sortOrder'],
                 ':size_bytes' => $row['size'],
                 ':content_hash' => normalize_hash_hex($row['contentHash'] ?? ''),
                 ':meta_hash' => normalize_hash_hex($row['metaHash'] ?? ''),
                 ':created_at' => now(),
-                ':updated_at' => now(),
+                ':updated_at' => share_doc_updated_at((string)($row['markdown'] ?? '')) ?: now(),
             ]);
         }
 
