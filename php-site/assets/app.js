@@ -36,7 +36,7 @@
   const FOOTNOTE_ICON_SVG =
     '<svg t="1770295603918" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6974" width="32" height="32" aria-hidden="true"><path d="M551.557889 78.312604a278.444815 278.444815 0 0 1 390.539326 3.412314 278.956662 278.956662 0 0 1 3.412314 390.79525l-0.554501 0.511847-141.525719 141.696335a278.572776 278.572776 0 0 1-330.610564 47.559125 278.658084 278.658084 0 0 1-89.487932-77.630141 42.653924 42.653924 0 0 1 68.331586-51.099401 193.264929 193.264929 0 0 0 222.226943 65.388465 193.264929 193.264929 0 0 0 69.184665-44.488042l141.269795-141.440412a193.648814 193.648814 0 0 0-2.601889-271.023032 193.136967 193.136967 0 0 0-270.681801-2.559235L530.188273 219.966285a42.653924 42.653924 0 1 1-60.142033-60.44061l81.127763-80.786532 0.42654-0.426539z" p-id="6975" fill="#0969DA"></path><path d="M319.904429 344.856974a278.359507 278.359507 0 0 1 320.458929 94.265172 42.653924 42.653924 0 0 1-68.331586 51.056746 193.350237 193.350237 0 0 0-140.928564-77.118294 193.051659 193.051659 0 0 0-150.483043 56.217872l-141.269796 141.397757a193.648814 193.648814 0 0 0 2.601889 271.023032 193.136967 193.136967 0 0 0 270.639147 2.601889l80.402646-80.487954a42.653924 42.653924 0 0 1 60.355303 60.312648l-80.701224 80.743878-0.511847 0.511847a278.444815 278.444815 0 0 1-390.539327-3.412314 278.956662 278.956662 0 0 1-3.412314-390.79525l0.554501-0.511847 141.52572-141.696335A278.572776 278.572776 0 0 1 319.904429 344.856974z" p-id="6976" fill="#0969DA"></path></svg>';
   const footnoteWindows = new Set();
-  let footnoteWindowZ = 1300;
+  let footnoteWindowZ = 1600;
   let footnoteWindowSeq = 0;
   let footnotePreviewBound = false;
 
@@ -1787,7 +1787,7 @@
         `<footer class="share-footer">\u7531 <a href="https://github.com/b8l8u8e8/siyuan-plugin-share" target="_blank" rel="noopener noreferrer">b8l8u8e8</a> \u63d0\u4F9B\u652F\u6301</footer>` +
         `<button class="share-side-trigger" type="button" data-share-drawer-open aria-label="\u6253\u5F00\u4FA7\u8FB9\u680F"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg><span>\u5BFC\u822A</span></button>` +
         `<div class="share-side-backdrop" data-share-drawer-close></div>` +
-        `<button class="scroll-top" type="button" data-scroll-top aria-label="\u56DE\u5230\u9876\u90E8"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c-2.76 0-5 2.24-5 5v2.5L4 13l4.5 1L12 22l3.5-8L20 13l-3-3.5V7c0-2.76-2.24-5-5-5zm0 3a2 2 0 0 1 2 2v1.5l-2 2-2-2V7a2 2 0 0 1 2-2z"/></svg></button>` +
+        `<button class="scroll-top" type="button" data-scroll-top data-tip="\u56DE\u5230\u9876\u90E8" aria-label="\u56DE\u5230\u9876\u90E8"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c-2.76 0-5 2.24-5 5v2.5L4 13l4.5 1L12 22l3.5-8L20 13l-3-3.5V7c0-2.76-2.24-5-5-5zm0 3a2 2 0 0 1 2 2v1.5l-2 2-2-2V7a2 2 0 0 1 2-2z"/></svg></button>` +
         `</div>` +
         scriptTags +
         `</body></html>`,
@@ -1813,7 +1813,7 @@
     });
     footnoteWindows.clear();
     footnoteWindowSeq = 0;
-    footnoteWindowZ = 1300;
+    footnoteWindowZ = 1600;
   };
 
   const createFootnoteWindow = (index, contentHtml, options = {}) => {
@@ -2418,6 +2418,371 @@
       });
     });
     setActive(defaultTab);
+  };
+
+  const initShareColumnResize = () => {
+    const page = document.querySelector(".share-page");
+    if (!page) return;
+    const DESKTOP = window.matchMedia("(min-width: 961px)");
+    const STORAGE_KEY = "sps:share:columns";
+    const MIN_LEFT = 160;
+    const MAX_LEFT = 420;
+    const MIN_RIGHT = 160;
+    const MAX_RIGHT = 360;
+    const DEFAULT_STATE = {left: 260, right: 230, leftCollapsed: false, rightCollapsed: false};
+    let state = {...DEFAULT_STATE};
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      if (raw && typeof raw === "object") state = {...DEFAULT_STATE, ...raw};
+    } catch (err) {
+      /* ignore */
+    }
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const apply = () => {
+      if (!DESKTOP.matches) return;
+      page.style.setProperty(
+        "--sidebar-width",
+        `${state.leftCollapsed ? 0 : clamp(state.left, MIN_LEFT, MAX_LEFT)}px`,
+      );
+      page.style.setProperty(
+        "--right-width",
+        `${state.rightCollapsed ? 0 : clamp(state.right, MIN_RIGHT, MAX_RIGHT)}px`,
+      );
+      page.classList.toggle("is-left-collapsed", Boolean(state.leftCollapsed));
+      page.classList.toggle("is-right-collapsed", Boolean(state.rightCollapsed));
+    };
+    const save = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        /* ignore */
+      }
+    };
+    const syncMedia = () => {
+      if (DESKTOP.matches) {
+        apply();
+      } else {
+        document.body.classList.remove("sps-resizing");
+      }
+    };
+    if (typeof DESKTOP.addEventListener === "function") {
+      DESKTOP.addEventListener("change", syncMedia);
+    } else if (typeof DESKTOP.addListener === "function") {
+      DESKTOP.addListener(syncMedia);
+    }
+
+    let dragging = null;
+    const onMove = (event) => {
+      if (!dragging) return;
+      const delta = event.clientX - dragging.startX;
+      if (dragging.side === "left") {
+        const base = dragging.fromCollapsed ? MIN_LEFT : dragging.startLeft;
+        state.left = clamp(base + delta, MIN_LEFT, MAX_LEFT);
+        state.leftCollapsed = false;
+      } else {
+        const base = dragging.fromCollapsed ? MIN_RIGHT : dragging.startRight;
+        state.right = clamp(base - delta, MIN_RIGHT, MAX_RIGHT);
+        state.rightCollapsed = false;
+      }
+      apply();
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = null;
+      document.body.classList.remove("sps-resizing");
+      save();
+    };
+    page.querySelectorAll("[data-share-gutter]").forEach((gutter) => {
+      const side = gutter.getAttribute("data-share-gutter");
+      gutter.addEventListener("pointerdown", (event) => {
+        if (event.target.closest("[data-share-gutter-toggle]")) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        if (typeof gutter.setPointerCapture === "function") {
+          try {
+            gutter.setPointerCapture(event.pointerId);
+          } catch (err) {
+            /* ignore */
+          }
+        }
+        dragging = {
+          side,
+          startX: event.clientX,
+          startLeft: state.left,
+          startRight: state.right,
+          fromCollapsed: side === "left" ? state.leftCollapsed : state.rightCollapsed,
+        };
+        document.body.classList.add("sps-resizing");
+      });
+    });
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+
+    page.querySelectorAll("[data-share-gutter-toggle]").forEach((btn) => {
+      const side = btn.getAttribute("data-share-gutter-toggle");
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (side === "left") state.leftCollapsed = !state.leftCollapsed;
+        else state.rightCollapsed = !state.rightCollapsed;
+        apply();
+        save();
+      });
+    });
+
+    page.classList.toggle(
+      "share-page--with-right",
+      Boolean(page.querySelector('[data-share-gutter="right"]')),
+    );
+
+    syncMedia();
+  };
+
+  const initShareAnnounce = () => {
+    const root = document.querySelector("[data-share-announce]");
+    if (!root) return;
+    const toggles = Array.from(root.querySelectorAll("[data-share-announce-toggle]"));
+    if (!toggles.length) return;
+    const panels = Array.from(root.querySelectorAll("[data-share-announce-panel]"));
+    const closeTriggers = Array.from(root.querySelectorAll("[data-share-announce-close]"));
+    const panelOf = (el) => el.getAttribute("data-share-announce-toggle") || "announce";
+    const syncBalls = () => {
+      toggles.forEach((el) => {
+        el.setAttribute("aria-expanded", String(root.dataset.activePanel === panelOf(el)));
+      });
+    };
+    const openPanel = (name) => {
+      if (!panels.some((p) => p.getAttribute("data-share-announce-panel") === name)) return;
+      root.dataset.activePanel = name;
+      root.classList.add("is-open");
+      syncBalls();
+      const panel = root.querySelector('[data-share-announce-panel="' + name + '"]');
+      const closeBtn = panel ? panel.querySelector(".share-announce-modal__close") : null;
+      if (closeBtn) closeBtn.focus();
+    };
+    const closeAll = () => {
+      root.classList.remove("is-open");
+      delete root.dataset.activePanel;
+      syncBalls();
+    };
+    closeTriggers.forEach((el) => {
+      el.addEventListener("click", closeAll);
+    });
+    toggles.forEach((el) => {
+      el.addEventListener("click", () => openPanel(panelOf(el)));
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && root.classList.contains("is-open")) {
+        closeAll();
+      }
+    });
+    if (panels.some((p) => p.getAttribute("data-share-announce-panel") === "announce")) {
+      openPanel("announce");
+    }
+  };
+
+  const initShareAnnounceToc = () => {
+    const toc = document.querySelector("[data-announce-toc]");
+    if (!toc) return;
+    const modal = toc.closest(".share-announce-modal");
+    if (!modal) return;
+    const body = modal.querySelector(".share-announce-modal__body");
+    const tocBody = toc.querySelector("[data-announce-toc-body]");
+    const reopenBtn = modal.querySelector("[data-announce-toc-reopen]");
+    const collapseBtn = modal.querySelector("[data-announce-toc-collapse]");
+    const resizer = modal.querySelector("[data-announce-toc-resize]");
+    if (!body || !tocBody || !reopenBtn || !collapseBtn || !resizer) return;
+
+    const STORAGE_WIDTH = "sps-announce-toc-width";
+    const STORAGE_OPEN = "sps-announce-toc-open";
+
+    const collectHeadings = () => {
+      const headings = [];
+      body.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading) => {
+        if (heading.closest(".footnotes, .markdown-footnotes")) return;
+        headings.push(heading);
+      });
+      return headings;
+    };
+
+    const ensureHeadingId = (heading, index) => {
+      if (heading.id) return heading.id;
+      const text = String(heading.textContent || "").trim().toLowerCase();
+      const base = text
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-\u4e00-\u9fff]+/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "") || `section-${index + 1}`;
+      let nextId = base;
+      let counter = 1;
+      while (document.getElementById(nextId)) {
+        nextId = `${base}-${counter}`;
+        counter += 1;
+      }
+      heading.id = nextId;
+      return nextId;
+    };
+
+    const buildTree = (headings) => {
+      const root = {level: 0, children: []};
+      const stack = [root];
+      headings.forEach((heading, index) => {
+        const level = Number(String(heading.tagName || "H2").slice(1)) || 2;
+        const node = {
+          heading,
+          level,
+          id: ensureHeadingId(heading, index),
+          children: [],
+        };
+        while (stack.length > 1 && level <= stack[stack.length - 1].level) {
+          stack.pop();
+        }
+        stack[stack.length - 1].children.push(node);
+        stack.push(node);
+      });
+      return root.children;
+    };
+
+    const renderTree = (nodes, level) => {
+      const list = document.createElement("ul");
+      list.className = "share-announce-toc-list";
+      if (level > 1) list.classList.add("share-announce-toc-children");
+      nodes.forEach((node) => {
+        const item = document.createElement("li");
+        item.className = "share-announce-toc-item";
+        const link = document.createElement("a");
+        link.className = "share-announce-toc-link";
+        link.href = `#${node.id}`;
+        link.style.setProperty("--toc-indent", `${Math.max(0, level - 1) * 14}px`);
+        link.textContent = node.heading.textContent || "未命名";
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          const target = document.getElementById(node.id);
+          if (!target) return;
+          const bodyRect = body.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          body.scrollTo({
+            top: body.scrollTop + (targetRect.top - bodyRect.top),
+            behavior: "smooth",
+          });
+        });
+        item.appendChild(link);
+        if (node.children.length) {
+          item.appendChild(renderTree(node.children, level + 1));
+        }
+        list.appendChild(item);
+      });
+      return list;
+    };
+
+    const render = () => {
+      tocBody.innerHTML = "";
+      const headings = collectHeadings();
+      if (!headings.length) {
+        reopenBtn.hidden = true;
+        toc.hidden = true;
+        resizer.hidden = true;
+        return;
+      }
+      tocBody.appendChild(renderTree(buildTree(headings), 1));
+    };
+
+    const setOpen = (open) => {
+      toc.hidden = !open;
+      resizer.hidden = !open;
+      reopenBtn.hidden = open;
+      collapseBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+
+    const bind = () => {
+      if (reopenBtn.dataset.announceTocBound === "1") return;
+      reopenBtn.dataset.announceTocBound = "1";
+
+      reopenBtn.addEventListener("click", () => {
+        setOpen(true);
+        try {
+          window.localStorage.setItem(STORAGE_OPEN, "1");
+        } catch {
+          // ignore
+        }
+      });
+
+      collapseBtn.addEventListener("click", () => {
+        setOpen(false);
+        try {
+          window.localStorage.setItem(STORAGE_OPEN, "0");
+        } catch {
+          // ignore
+        }
+      });
+
+      let dragging = false;
+      let startX = 0;
+      let startWidth = 0;
+      const onMove = (event) => {
+        if (!dragging) return;
+        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+        const width = Math.min(320, Math.max(120, startWidth + (clientX - startX)));
+        toc.style.width = `${width}px`;
+      };
+      const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.classList.remove("sps-announce-resizing");
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", onUp);
+        try {
+          window.localStorage.setItem(STORAGE_WIDTH, toc.style.width);
+        } catch {
+          // ignore
+        }
+      };
+      const startDrag = (clientX) => {
+        dragging = true;
+        startX = clientX;
+        startWidth = toc.getBoundingClientRect().width;
+        document.body.classList.add("sps-announce-resizing");
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+        document.addEventListener("touchmove", onMove);
+        document.addEventListener("touchend", onUp);
+      };
+      resizer.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        startDrag(event.clientX);
+      });
+      resizer.addEventListener(
+        "touchstart",
+        (event) => {
+          event.preventDefault();
+          startDrag(event.touches[0].clientX);
+        },
+        {passive: false},
+      );
+    };
+
+    const storedWidth = (() => {
+      try {
+        return Number(window.localStorage.getItem(STORAGE_WIDTH));
+      } catch {
+        return null;
+      }
+    })();
+    if (Number.isFinite(storedWidth) && storedWidth >= 120 && storedWidth <= 320) {
+      toc.style.width = `${storedWidth}px`;
+    }
+    const storedOpen = (() => {
+      try {
+        return window.localStorage.getItem(STORAGE_OPEN);
+      } catch {
+        return null;
+      }
+    })();
+    setOpen(storedOpen === null ? true : storedOpen === "1");
+    bind();
+    render();
   };
 
   const initShareDrawer = () => {
@@ -3727,6 +4092,89 @@
       if (!trigger) return;
       event.preventDefault();
       open(trigger.dataset);
+    });
+  };
+
+  const initAdminShareAnnounceModal = () => {
+    const modal = document.querySelector("[data-share-announce-modal]");
+    if (!modal) return;
+    const form = modal.querySelector("[data-share-announce-form]");
+    if (!form) return;
+    const shareIdInput = form.querySelector("[data-announce-share-id]");
+    const modeSelect = form.querySelector("[data-announce-mode]");
+    const titleInput = form.querySelector("[data-announce-title]");
+    const contentInput = form.querySelector("[data-announce-content]");
+    const docSelect = form.querySelector("[data-announce-doc-select]");
+    const manualFields = modal.querySelector('[data-announce-fields="manual"]');
+    const docFields = modal.querySelector('[data-announce-fields="doc"]');
+    const syncFields = () => {
+      const mode = modeSelect ? modeSelect.value : "none";
+      if (manualFields) manualFields.hidden = mode !== "manual";
+      if (docFields) docFields.hidden = mode !== "doc";
+    };
+    if (modeSelect) modeSelect.addEventListener("change", syncFields);
+    const close = () => {
+      modal.hidden = true;
+    };
+    const loadDocs = (shareId, selectedDocId) => {
+      if (!docSelect) return;
+      docSelect.innerHTML = '<option value="">加载中…</option>';
+      const action = form.getAttribute("action") || "";
+      const base = action.replace(/\/admin\/share-announcement\/update$/, "");
+      fetch(base + "/admin/share-docs-json?share_id=" + encodeURIComponent(shareId), {
+        credentials: "same-origin",
+      })
+        .then((resp) => resp.json())
+        .then((payload) => {
+          if (!payload || payload.code !== 0) {
+            docSelect.innerHTML = '<option value="">加载失败</option>';
+            return;
+          }
+          const docs = payload.data?.docs || [];
+          const frag = document.createDocumentFragment();
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = "请选择分享内的笔记";
+          frag.appendChild(empty);
+          docs.forEach((doc) => {
+            const opt = document.createElement("option");
+            opt.value = doc.docId;
+            opt.textContent =
+              (doc.title || doc.docId) + (doc.hpath ? "（" + doc.hpath + "）" : "");
+            if (doc.docId === selectedDocId) opt.selected = true;
+            frag.appendChild(opt);
+          });
+          docSelect.innerHTML = "";
+          docSelect.appendChild(frag);
+        })
+        .catch(() => {
+          docSelect.innerHTML = '<option value="">加载失败</option>';
+        });
+    };
+    modal.addEventListener("click", (event) => {
+      const target = event.target;
+      if (
+        target &&
+        (target.closest("[data-modal-close]") ||
+          target.classList.contains("modal-backdrop"))
+      ) {
+        close();
+      }
+    });
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!target) return;
+      const trigger = target.closest("[data-share-announce-edit]");
+      if (!trigger) return;
+      event.preventDefault();
+      const dataset = trigger.dataset;
+      if (shareIdInput) shareIdInput.value = dataset.shareId || "";
+      if (modeSelect) modeSelect.value = dataset.shareAnnounceMode || "none";
+      if (titleInput) titleInput.value = dataset.shareAnnounceTitle || "";
+      if (contentInput) contentInput.value = dataset.shareAnnounceContent || "";
+      syncFields();
+      loadDocs(dataset.shareId || "", dataset.shareAnnounceDoc || "");
+      modal.hidden = false;
     });
   };
 
@@ -6269,6 +6717,11 @@ const initImageViewer = () => {
         console.error(err);
       }
       try {
+        initShareAnnounceToc();
+      } catch (err) {
+        console.error(err);
+      }
+      try {
         window.dispatchEvent(new Event("sps:share-dynamic-ready"));
       } catch (err) {
         console.error(err);
@@ -6308,10 +6761,13 @@ const initImageViewer = () => {
   initPaginationAutoSubmit();
   initFlashToast();
   initAdminCommentModal();
+  initAdminShareAnnounceModal();
   initScanProgress();
   initShareSearch();
   initSearchHighlight();
   initShareSidebarTabs();
+  initShareColumnResize();
+  initShareAnnounce();
   initShareDrawer();
   initShareDocNavigation();
   initImageViewer();

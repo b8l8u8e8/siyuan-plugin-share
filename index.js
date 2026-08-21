@@ -3886,6 +3886,7 @@ class SiYuanSharePlugin extends Plugin {
 
   async openShareDialogFor({type = SHARE_TYPES.DOC, id = "", title = ""} = {}) {
     const t = this.t.bind(this);
+    await this.trySyncRemoteShares({silent: true});
     const itemType = type === SHARE_TYPES.NOTEBOOK ? SHARE_TYPES.NOTEBOOK : SHARE_TYPES.DOC;
     let itemId = String(id || "").trim();
     if (!itemId && itemType === SHARE_TYPES.DOC) {
@@ -3979,6 +3980,10 @@ class SiYuanSharePlugin extends Plugin {
         includeChildrenDefault,
         excludedDocIds: excludedDefault,
         excludedDocCount: excludedCountDefault,
+        announcementMode: String(share?.announcementMode || "none"),
+        announcementTitle: String(share?.announcementTitle || ""),
+        announcementContent: String(share?.announcementContent || ""),
+        announcementDocId: String(share?.announcementDocId || ""),
       };
     };
 
@@ -4030,6 +4035,34 @@ class SiYuanSharePlugin extends Plugin {
       ${excludeActionsHtml}
       <div id="sps-share-excluded-count" class="siyuan-plugin-share__muted">${escapeHtml(excludedCountLabel)}</div>
     </div>`
+        : "";
+      const announcementMode = String(share?.announcementMode || "none");
+      const announcementTitle = String(share?.announcementTitle || "");
+      const announcementContent = String(share?.announcementContent || "");
+      const announcementDocId = String(share?.announcementDocId || "");
+      const announcementBlockHtml = share
+        ? `<div class="siyuan-plugin-share__section">
+    <div class="siyuan-plugin-share__title">${escapeHtml(t("siyuanShare.section.announcement"))}</div>
+    <div class="siyuan-plugin-share__muted">${escapeHtml(t("siyuanShare.hint.announcement"))}</div>
+    <div class="siyuan-plugin-share__grid">
+      <div class="siyuan-plugin-share__muted">${escapeHtml(t("siyuanShare.label.announcementMode"))}</div>
+      <select id="sps-share-announce-mode" class="b3-select" data-announce-change>
+        <option value="none"${announcementMode === "none" ? " selected" : ""}>${escapeHtml(t("siyuanShare.label.announcementModeNone"))}</option>
+        <option value="manual"${announcementMode === "manual" ? " selected" : ""}>${escapeHtml(t("siyuanShare.label.announcementModeManual"))}</option>
+        <option value="doc"${announcementMode === "doc" ? " selected" : ""}>${escapeHtml(t("siyuanShare.label.announcementModeDoc"))}</option>
+      </select>
+    </div>
+    <div class="sps-share-announce-fields" data-announce-fields="manual"${announcementMode === "manual" ? "" : " hidden"}>
+      <div class="siyuan-plugin-share__muted">${escapeHtml(t("siyuanShare.label.announcementTitle"))}</div>
+      <input id="sps-share-announce-title" type="text" class="b3-text-field" data-announce-change value="${escapeAttr(announcementTitle)}" />
+      <div class="siyuan-plugin-share__muted">${escapeHtml(t("siyuanShare.label.announcementContent"))}</div>
+      <textarea id="sps-share-announce-content" class="b3-text-field" rows="5" data-announce-change>${escapeHtml(announcementContent)}</textarea>
+    </div>
+    <div class="sps-share-announce-fields" data-announce-fields="doc"${announcementMode === "doc" ? "" : " hidden"}>
+      <div class="siyuan-plugin-share__muted">${escapeHtml(t("siyuanShare.label.announcementDoc"))}</div>
+      <select id="sps-share-announce-doc" class="b3-select" data-announce-change data-selected="${escapeAttr(announcementDocId)}"></select>
+    </div>
+  </div>`
         : "";
       return `<div class="siyuan-plugin-share sps-dialog-body">
   <div class="siyuan-plugin-share__section">
@@ -4104,9 +4137,6 @@ class SiYuanSharePlugin extends Plugin {
         <button class="b3-button b3-button--outline" data-action="update" data-share-id="${escapeAttr(
           share.id,
         )}">${escapeHtml(t("siyuanShare.action.updateShare"))}</button>
-        <button class="b3-button b3-button--outline" data-action="update-access" data-share-id="${escapeAttr(
-          share.id,
-        )}">${escapeHtml(t("siyuanShare.action.updateAccess"))}</button>
         <button class="b3-button b3-button--outline" data-action="delete" data-share-id="${escapeAttr(
           share.id,
         )}">${escapeHtml(t("siyuanShare.action.deleteShare"))}</button>
@@ -4121,18 +4151,25 @@ class SiYuanSharePlugin extends Plugin {
       </div>`
     }
   </div>
-</div>
-<div class="b3-dialog__action">
-  <button class="b3-button b3-button--cancel" data-action="close">${escapeHtml(
-    t("siyuanShare.action.close"),
-  )}</button>
+  ${announcementBlockHtml}
+</div>`;
+    };
+    const renderFooter = (share) => `<button class="b3-button b3-button--cancel" data-action="close">${escapeHtml(
+      t("siyuanShare.action.close"),
+    )}</button>
   <div class="fn__space"></div>
   <button class="b3-button b3-button--text" data-action="open-settings">${escapeHtml(
     t("siyuanShare.action.openSettings"),
   )}</button>
-</div>`;
-    };
-    const content = `<div class="sps-share-dialog-content">${renderContent()}</div>`;
+  ${
+    share
+      ? `<button class="b3-button b3-button--outline" data-action="update-access" data-share-id="${escapeAttr(
+          share.id,
+        )}">${escapeHtml(t("siyuanShare.action.updateAccess"))}</button>`
+      : ""
+  }`;
+    const content = `<div class="sps-share-dialog-content">${renderContent()}</div>
+<div class="b3-dialog__action">${renderFooter(getShare())}</div>`;
 
     const normalizeExcludedDocCount = (value, fallback = 0) => {
       const parsed = Number(value);
@@ -4242,6 +4279,80 @@ class SiYuanSharePlugin extends Plugin {
       }
     };
 
+    const populateAnnouncementDocSelect = (root) => {
+      const container = root || dialog?.element;
+      if (!container) return;
+      const docSelect = container.querySelector?.("#sps-share-announce-doc");
+      if (!docSelect || docSelect.dataset.populated === "1") return;
+      const currentValue = String(docSelect.getAttribute("data-selected") || "");
+      const hiddenIds = container.querySelector?.("#sps-share-excluded-doc-ids");
+      const excludedDocIds = normalizeDocIdList(hiddenIds?.value || "");
+      const lockedDocIds = itemType === SHARE_TYPES.DOC ? [itemId] : [];
+      void (async () => {
+        try {
+          const docs = await loadExcludeScopeDocs({});
+          const excludedSet = this.expandExcludedDocIds(docs, excludedDocIds, {lockedDocIds});
+          const rowMap = new Map();
+          docs.forEach((doc) => {
+            const id = String(doc?.docId || doc?.id || "").trim();
+            if (isValidDocId(id)) rowMap.set(id, doc);
+          });
+          const hpathCache = new Map();
+          const buildHpath = (id, seen) => {
+            if (hpathCache.has(id)) return hpathCache.get(id);
+            if (seen.has(id)) return "";
+            const row = rowMap.get(id);
+            if (!row) return "";
+            seen.add(id);
+            const parentId = String(row?.parentId || "").trim();
+            const parentPath = parentId && rowMap.has(parentId) ? buildHpath(parentId, seen) : "";
+            const title = String(row?.title || "").trim();
+            const path = parentPath ? `${parentPath}/${title}` : title;
+            hpathCache.set(id, path);
+            seen.delete(id);
+            return path;
+          };
+          const frag = document.createDocumentFragment();
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = t("siyuanShare.hint.announcementDocPlaceholder");
+          frag.appendChild(empty);
+          docs.forEach((doc) => {
+            const docId = String(doc?.docId || doc?.id || "").trim();
+            if (!isValidDocId(docId)) return;
+            if (excludedSet.has(docId)) return;
+            const opt = document.createElement("option");
+            opt.value = docId;
+            const title = String(doc?.title || "").trim() || docId;
+            const path = buildHpath(docId, new Set());
+            opt.textContent = path
+              ? t("siyuanShare.label.announcementDocOption", {title, path})
+              : title;
+            if (docId === currentValue) opt.selected = true;
+            frag.appendChild(opt);
+          });
+          docSelect.innerHTML = "";
+          docSelect.appendChild(frag);
+          docSelect.dataset.populated = "1";
+        } catch (err) {
+          console.warn("populateAnnouncementDocSelect failed", err);
+        }
+      })();
+    };
+
+    const syncAnnouncementControls = (root) => {
+      const container = root || dialog?.element;
+      if (!container) return;
+      const modeInput = container.querySelector?.("#sps-share-announce-mode");
+      if (!modeInput) return;
+      const mode = modeInput.value || "none";
+      const manualFields = container.querySelector?.('[data-announce-fields="manual"]');
+      const docFields = container.querySelector?.('[data-announce-fields="doc"]');
+      if (manualFields) manualFields.hidden = mode !== "manual";
+      if (docFields) docFields.hidden = mode !== "doc";
+      if (mode === "doc") populateAnnouncementDocSelect(container);
+    };
+
     const readShareOptions = (root, currentShare) => {
       const passwordInput = root?.querySelector?.("#sps-share-password");
       const expiresInput = root?.querySelector?.("#sps-share-expires");
@@ -4264,6 +4375,27 @@ class SiYuanSharePlugin extends Plugin {
       const requestedSlug = normalizeShareSlugInput(slugInput?.value || "");
       const password = passwordRaw === passwordKeepToken ? "" : passwordRaw;
       const includeChildren = !!includeChildrenInput?.checked;
+      const announceModeInput = root?.querySelector?.("#sps-share-announce-mode");
+      const announceTitleInput = root?.querySelector?.("#sps-share-announce-title");
+      const announceContentInput = root?.querySelector?.("#sps-share-announce-content");
+      const announceDocInput = root?.querySelector?.("#sps-share-announce-doc");
+      const announceMode = announceModeInput?.value || "none";
+      const announceDocIdValue = (announceDocInput?.value || "").trim();
+      const announcement = {
+        mode: announceMode,
+        title:
+          announceMode === "manual"
+            ? (announceTitleInput?.value || "").trim()
+            : passwordKeepToken,
+        content:
+          announceMode === "manual"
+            ? (announceContentInput?.value || "").trim()
+            : passwordKeepToken,
+        docId:
+          announceMode === "doc" && isValidDocId(announceDocIdValue)
+            ? announceDocIdValue
+            : passwordKeepToken,
+      };
       return {
         slugOverride: requestedSlug && requestedSlug !== currentSlug ? requestedSlug : "",
         password,
@@ -4274,6 +4406,7 @@ class SiYuanSharePlugin extends Plugin {
         clearVisitorLimit: !!currentShare && hasExistingVisitorLimit && visitorRaw === "",
         includeChildren,
         excludedDocIds,
+        announcement,
       };
     };
 
@@ -4403,6 +4536,9 @@ class SiYuanSharePlugin extends Plugin {
       if (target.id === "sps-share-include-children") {
         syncExcludeControlsState(dialog?.element);
       }
+      if (typeof target.closest === "function" && target.closest("[data-announce-change]")) {
+        syncAnnouncementControls(dialog?.element);
+      }
     };
 
     let dialog = null;
@@ -4420,7 +4556,12 @@ class SiYuanSharePlugin extends Plugin {
       contentEl.innerHTML = renderContent();
       attachCopyFocus();
       syncExcludeControlsState(dialog?.element);
+      syncAnnouncementControls(dialog?.element);
       refreshExcludedDocCount(dialog?.element);
+      const footerEl = dialog?.element?.querySelector?.(".b3-dialog__action");
+      if (footerEl) {
+        footerEl.innerHTML = renderFooter(getShare());
+      }
     };
 
     dialog = new Dialog({
@@ -4435,10 +4576,13 @@ class SiYuanSharePlugin extends Plugin {
       },
     });
 
+    dialog.element?.classList?.add("sps-share-dialog");
+
     dialog.element.addEventListener("click", onClick);
     dialog.element.addEventListener("change", onChange);
     attachCopyFocus();
     syncExcludeControlsState(dialog?.element);
+    syncAnnouncementControls(dialog?.element);
     refreshExcludedDocCount(dialog?.element);
   }
 
@@ -10139,6 +10283,7 @@ class SiYuanSharePlugin extends Plugin {
 
   async fetchDocsByPath(notebookId, pathValue = "") {
     if (!isValidNotebookId(notebookId)) return {ok: false, nodes: []};
+    if (!(await this.isNotebookListable(notebookId))) return {ok: false, nodes: []};
     try {
       const resp = await fetchSyncPost("/api/filetree/listDocsByPath", {
         notebook: notebookId,
@@ -10613,6 +10758,7 @@ class SiYuanSharePlugin extends Plugin {
       clearExpires = false,
       visitorLimit = null,
       clearVisitorLimit = false,
+      announcement = null,
     } = {},
   ) {
     const t = this.t.bind(this);
@@ -10645,6 +10791,12 @@ class SiYuanSharePlugin extends Plugin {
         payload.clearVisitorLimit = true;
       } else if (Number.isFinite(visitorLimit)) {
         payload.visitorLimit = Math.max(0, Math.floor(visitorLimit));
+      }
+      if (announcement) {
+        payload.announcementMode = announcement.mode || "none";
+        payload.announcementTitle = announcement.title ?? "__KEEP__";
+        payload.announcementContent = announcement.content ?? "__KEEP__";
+        payload.announcementDocId = announcement.docId ?? "__KEEP__";
       }
       progress.update(t("siyuanShare.progress.requesting"));
       await this.remoteRequest(REMOTE_API.shareAccessUpdate, {
@@ -11275,6 +11427,14 @@ class SiYuanSharePlugin extends Plugin {
     const row = (Array.isArray(notebooks) ? notebooks : []).find((item) => this.getNotebookRowId(item) === id);
     if (!row) return false;
     return this.isNotebookClosedRow(row);
+  }
+
+  async isNotebookListable(notebookId) {
+    if (!isValidNotebookId(notebookId)) return false;
+    const rows = await this.refreshNotebookStateForAutoUpdate({force: false});
+    const row = (Array.isArray(rows) ? rows : []).find((item) => this.getNotebookRowId(item) === notebookId);
+    if (!row) return false;
+    return !this.isNotebookClosedRow(row);
   }
 
   async getAutoUpdateShareNotebookId(share, {controller = null} = {}) {
