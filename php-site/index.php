@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+$tz = (string)(getenv('TZ') ?: 'Asia/Shanghai');
+if (!@date_default_timezone_set($tz)) {
+    @date_default_timezone_set('Asia/Shanghai');
+}
+
 $exampleVersion = null;
 $exampleCentralStatsUrl = null;
 if (file_exists(__DIR__ . '/config.example.php')) {
@@ -78,6 +83,11 @@ function base_path(): string {
     $dir = str_replace('\\', '/', dirname($script));
     $dir = rtrim($dir, '/');
     return $dir === '/' ? '' : $dir;
+}
+
+function asset_url(string $path): string {
+    $mtime = @filemtime(__DIR__ . $path);
+    return base_path() . $path . '?v=' . ($mtime ?: 0);
 }
 
 function base_url(): string {
@@ -768,6 +778,18 @@ function extract_front_matter(string $markdown): array {
     return ['meta' => $meta, 'body' => $body];
 }
 
+function share_doc_updated_at(string $markdown): string {
+    $front = extract_front_matter($markdown);
+    $raw = (string)($front['meta']['lastmod'] ?? $front['meta']['updated'] ?? $front['meta']['modified'] ?? $front['meta']['last_modified'] ?? '');
+    if ($raw !== '') {
+        $ts = strtotime($raw);
+        if ($ts) {
+            return date('Y-m-d H:i:s', $ts);
+        }
+    }
+    return '';
+}
+
 function format_meta_date(?string $raw): string {
     if (!$raw) {
         return '';
@@ -1199,7 +1221,7 @@ function render_page(string $title, string $content, ?array $user = null, string
         echo "<link rel='stylesheet' href='{$base}/assets/vendor/katex.min.css'>";
         echo "<link rel='stylesheet' href='{$base}/assets/vendor/highlight.min.css'>";
     }
-    echo "<link rel='stylesheet' href='{$base}/assets/style.css'>";
+    echo "<link rel='stylesheet' href='" . asset_url('/assets/style.css') . "'>";
     $siteCustomCssEnabled = get_bool_setting('site_custom_css_enabled', true);
     $siteCustomCss = (string)get_setting('site_custom_css', '');
     if ($siteCustomCssEnabled && trim($siteCustomCss) !== '') {
@@ -1308,7 +1330,7 @@ function render_page(string $title, string $content, ?array $user = null, string
         }
     }
 
-    echo "<script defer src='{$base}/assets/app.js'></script>";
+    echo "<script defer src='" . asset_url('/assets/app.js') . "'></script>";
     if ($includeMarkdown) {
         echo "<script defer src='{$base}/assets/vendor/markdown-it.min.js'></script>";
         echo "<script defer src='{$base}/assets/vendor/markdown-it-task-lists.min.js'></script>";
@@ -6305,7 +6327,7 @@ function handle_api(string $path): void {
                         ':content_hash' => normalize_hash_hex($row['content_hash'] ?? ''),
                         ':meta_hash' => normalize_hash_hex($row['meta_hash'] ?? ''),
                         ':created_at' => now(),
-                        ':updated_at' => now(),
+                        ':updated_at' => share_doc_updated_at($docMarkdown) ?: now(),
                     ]);
                     unset($docMarkdown);
                 }
@@ -6380,7 +6402,7 @@ function handle_api(string $path): void {
                         ':size_bytes' => $row['size_bytes'] ?? 0,
                         ':content_hash' => normalize_hash_hex($row['content_hash'] ?? ''),
                         ':meta_hash' => normalize_hash_hex($row['meta_hash'] ?? ''),
-                        ':updated_at' => now(),
+                        ':updated_at' => share_doc_updated_at($docMarkdown) ?: now(),
                     ];
                     unset($docMarkdown);
                     if ($docRowId > 0) {
@@ -6738,7 +6760,7 @@ function handle_api(string $path): void {
                 ':content_hash' => normalize_hash_hex($row['contentHash'] ?? ''),
                 ':meta_hash' => normalize_hash_hex($row['metaHash'] ?? ''),
                 ':created_at' => now(),
-                ':updated_at' => now(),
+                ':updated_at' => share_doc_updated_at((string)($row['markdown'] ?? '')) ?: now(),
             ]);
         }
 
@@ -6959,12 +6981,12 @@ function handle_api(string $path): void {
                 ':parent_id' => $row['parentId'] !== '' ? $row['parentId'] : null,
                 ':sort_index' => $row['sortIndex'],
                 ':markdown' => $row['markdown'],
-                ':sort_order' => (int)$row['sortOrder'],
+                ':sort_order' => $row['sortOrder'],
                 ':size_bytes' => $row['size'],
                 ':content_hash' => normalize_hash_hex($row['contentHash'] ?? ''),
                 ':meta_hash' => normalize_hash_hex($row['metaHash'] ?? ''),
                 ':created_at' => now(),
-                ':updated_at' => now(),
+                ':updated_at' => share_doc_updated_at((string)($row['markdown'] ?? '')) ?: now(),
             ]);
         }
 
@@ -8370,6 +8392,85 @@ function render_share_search_box(string $slug): string {
     return $html;
 }
 
+function render_share_recent_list(array $docs, string $slug, int $limit = 5): string {
+    $recent = [];
+    foreach ($docs as $doc) {
+        $recent[] = [
+            'doc_id' => (string)($doc['doc_id'] ?? ''),
+            'title' => trim((string)($doc['title'] ?? '')),
+            'updated_at' => (string)($doc['updated_at'] ?? ''),
+        ];
+    }
+    usort($recent, function (array $a, array $b): int {
+        $ta = strtotime($a['updated_at']) ?: 0;
+        $tb = strtotime($b['updated_at']) ?: 0;
+        return $tb <=> $ta;
+    });
+    $recent = array_slice($recent, 0, max(1, $limit));
+    $base = base_path();
+    $items = '';
+    foreach ($recent as $row) {
+        $title = $row['title'] !== '' ? $row['title'] : $row['doc_id'];
+        $time = format_share_datetime($row['updated_at']);
+        $href = $base . '/s/' . rawurlencode($slug) . '/' . rawurlencode($row['doc_id']);
+        $items .= '<a class="share-recent-item" href="' . htmlspecialchars($href) . '" data-doc-id="' . htmlspecialchars($row['doc_id']) . '" data-share-nav="doc">';
+        $items .= '<span class="share-recent-title">' . htmlspecialchars($title) . '</span>';
+        if ($time !== '') {
+            $items .= '<span class="share-recent-time">' . htmlspecialchars($time) . '</span>';
+        }
+        $items .= '</a>';
+    }
+    if ($items === '') {
+        return '<div class="share-recent-empty">暂无更新文档</div>';
+    }
+    return '<div class="share-recent-list">' . $items . '</div>';
+}
+
+function render_share_gutter(string $side, string $label): string {
+    $html = '<div class="share-gutter share-gutter--' . $side . '" data-share-gutter="' . $side . '" role="separator" aria-orientation="vertical" aria-label="' . htmlspecialchars($label) . '">';
+    $html .= '<button class="share-gutter-toggle" type="button" data-share-gutter-toggle="' . $side . '" title="收起/展开" aria-label="收起/展开">';
+    $html .= '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.41 16.59 10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>';
+    $html .= '</button>';
+    $html .= '<span class="share-gutter-label" aria-hidden="true">' . htmlspecialchars($label) . '</span>';
+    $html .= '</div>';
+    return $html;
+}
+
+function render_share_right_rail(array $docs, string $slug, bool $includeRecent = true): string {
+    $html = render_share_gutter('right', '目录');
+    $html .= '<div class="share-right">';
+    $html .= '<div class="share-panel share-panel--toc" data-share-toc="doc">';
+    $html .= '<div class="share-panel-head"><span class="share-panel-title">目录</span></div>';
+    $html .= '<div class="share-panel-body share-toc-body"></div>';
+    $html .= '</div>';
+    if ($includeRecent) {
+        $html .= '<div class="share-panel share-panel--recent">';
+        $html .= '<div class="share-panel-head">';
+        $html .= '<span class="share-panel-title">最近更新</span>';
+        $html .= '<select class="share-recent-limit" data-share-recent-limit aria-label="显示数量">';
+        $html .= '<option value="5" selected>5</option>';
+        $html .= '<option value="10">10</option>';
+        $html .= '<option value="20">20</option>';
+        $html .= '<option value="50">50</option>';
+        $html .= '</select>';
+        $html .= '</div>';
+        $html .= '<div class="share-panel-body share-recent-body">' . render_share_recent_list($docs, $slug, 50) . '</div>';
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+function render_share_sidebar_info(int $total, bool $withHint = true): string {
+    $html  = '<div class="kb-side-info">';
+    $html .= '<div class="kb-side-count">共 ' . $total . ' 篇文档</div>';
+    if ($withHint) {
+        $html .= '<div class="kb-side-hint">拖拽边缘调宽度 · 圆钮收起/展开</div>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
 function render_doc_tree(array $nodes, string $slug, ?string $activeId = null, int $level = 0, string $path = '', string $assetBasePath = ''): string {
     if (empty($nodes)) {
         return '';
@@ -8573,10 +8674,12 @@ function route_share(string $slug, ?string $docId = null): void {
             $reportModalHtml = render_share_report_form($share, $viewer, (string)$activeDocId);
             $treeHtml = render_doc_tree(build_doc_tree($docs, $activeDocId), $slug, $activeDocId, 0, '', $assetBasePath);
             $sidebar = '<aside class="kb-sidebar" data-share-sidebar data-share-slug="' . htmlspecialchars($slug) . '">';
+            $sidebar .= render_share_sidebar_info(count($docs), true);
             $sidebar .= render_share_search_box($slug);
             $sidebar .= '<div class="kb-side-tabs" data-share-tabs data-share-default="tree">';
             $sidebar .= '<button class="kb-side-tab is-active" type="button" data-share-tab="tree">文档树</button>';
             $sidebar .= '<button class="kb-side-tab" type="button" data-share-tab="toc">目录</button>';
+            $sidebar .= '<button class="kb-side-tab" type="button" data-share-tab="recent">最近更新</button>';
             $sidebar .= '<div class="kb-side-actions" data-share-tree-actions>';
             $sidebar .= '<button class="kb-side-action" type="button" data-tree-collapse title="折叠所有" aria-label="折叠所有"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sps-tree-collapse-all"></use></svg></button>';
             $sidebar .= '<button class="kb-side-action" type="button" data-tree-expand title="展开所有" aria-label="展开所有"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sps-tree-expand-all"></use></svg></button>';
@@ -8587,6 +8690,9 @@ function route_share(string $slug, ?string $docId = null): void {
             $sidebar .= '</div>';
             $sidebar .= '<div class="kb-side-panel" data-share-panel="toc" data-share-toc="doc" hidden>';
             $sidebar .= '<div class="kb-side-body share-toc-body"></div>';
+            $sidebar .= '</div>';
+            $sidebar .= '<div class="kb-side-panel" data-share-panel="recent" hidden>';
+            $sidebar .= '<div class="kb-side-body share-recent-body">' . render_share_recent_list($docs, $slug, 5) . '</div>';
             $sidebar .= '</div>';
             $sidebar .= '</aside>';
             $base = base_path();
@@ -8637,7 +8743,9 @@ function route_share(string $slug, ?string $docId = null): void {
             }
             $content = '<div class="share-shell share-shell--notebook" data-share-doc-id="' . htmlspecialchars($activeDocId) . '">';
             $content .= $sidebar;
+            $content .= render_share_gutter('left', '文档树');
             $content .= $mainHtml;
+            $content .= render_share_right_rail($docs, $slug, true);
             $content .= '</div>';
             render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
             return;
@@ -8657,17 +8765,7 @@ function route_share(string $slug, ?string $docId = null): void {
         record_share_access($share, (string)($doc['doc_id'] ?? ''), $docTitleRaw);
         $commentHtml = render_share_comments($share, $viewer, null);
         $reportModalHtml = render_share_report_form($share, $viewer, null);
-        $sidebar = '<aside class="kb-sidebar" data-share-sidebar data-share-slug="' . htmlspecialchars($slug) . '">';
-        $sidebar .= render_share_search_box($slug);
-        $sidebar .= '<div class="kb-side-tabs" data-share-tabs data-share-default="toc">';
-        $sidebar .= '<button class="kb-side-tab is-active" type="button" data-share-tab="toc">目录</button>';
-        $sidebar .= '</div>';
-        $sidebar .= '<div class="kb-side-panel" data-share-panel="toc" data-share-toc="doc">';
-        $sidebar .= '<div class="kb-side-body share-toc-body"></div>';
-        $sidebar .= '</div>';
-        $sidebar .= '</aside>';
-        $content = '<div class="share-shell share-shell--notebook">';
-        $content .= $sidebar;
+        $content = '<div class="share-shell share-shell--notebook share-shell--single-doc">';
         $content .= '<div class="kb-main">';
         $content .= '<div class="share-article" data-share-view="preview">';
         $content .= '<div class="kb-header">';
@@ -8681,17 +8779,21 @@ function route_share(string $slug, ?string $docId = null): void {
         $content .= '<textarea class="markdown-source" data-md-id="doc" readonly spellcheck="false" aria-label="Markdown 源码">' . htmlspecialchars($markdown) . '</textarea>';
         $content .= $commentHtml;
         $content .= $reportModalHtml;
-        $content .= '</div></div></div>';
+        $content .= '</div></div>';
+        $content .= render_share_right_rail($docs, $slug, false);
+        $content .= '</div>';
         render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
     }
 
     if ($share['type'] === 'notebook') {
         $treeHtml = render_doc_tree(build_doc_tree($docs, $docId), $slug, $docId, 0, '', $assetBasePath);
         $sidebar = '<aside class="kb-sidebar" data-share-sidebar data-share-slug="' . htmlspecialchars($slug) . '">';
+        $sidebar .= render_share_sidebar_info(count($docs), (bool)$docId);
         $sidebar .= render_share_search_box($slug);
         $sidebar .= '<div class="kb-side-tabs" data-share-tabs data-share-default="tree">';
         $sidebar .= '<button class="kb-side-tab is-active" type="button" data-share-tab="tree">文档树</button>';
         $sidebar .= '<button class="kb-side-tab" type="button" data-share-tab="toc">目录</button>';
+        $sidebar .= '<button class="kb-side-tab" type="button" data-share-tab="recent">最近更新</button>';
         $sidebar .= '<div class="kb-side-actions" data-share-tree-actions>';
         $sidebar .= '<button class="kb-side-action" type="button" data-tree-collapse title="折叠所有" aria-label="折叠所有"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sps-tree-collapse-all"></use></svg></button>';
         $sidebar .= '<button class="kb-side-action" type="button" data-tree-expand title="展开所有" aria-label="展开所有"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sps-tree-expand-all"></use></svg></button>';
@@ -8702,6 +8804,9 @@ function route_share(string $slug, ?string $docId = null): void {
         $sidebar .= '</div>';
         $sidebar .= '<div class="kb-side-panel" data-share-panel="toc" data-share-toc="doc" hidden>';
         $sidebar .= '<div class="kb-side-body share-toc-body"></div>';
+        $sidebar .= '</div>';
+        $sidebar .= '<div class="kb-side-panel" data-share-panel="recent" hidden>';
+        $sidebar .= '<div class="kb-side-body share-recent-body">' . render_share_recent_list($docs, $slug, 5) . '</div>';
         $sidebar .= '</div>';
         $sidebar .= '</aside>';
         $base = base_path();
@@ -8763,7 +8868,9 @@ function route_share(string $slug, ?string $docId = null): void {
             }
             $content = '<div class="share-shell share-shell--notebook" data-share-doc-id="' . htmlspecialchars((string)$docId) . '">';
             $content .= $sidebar;
+            $content .= render_share_gutter('left', '文档树');
             $content .= $mainHtml;
+            $content .= render_share_right_rail($docs, $slug, true);
             $content .= '</div>';
             render_page($docTitleRaw, $content, null, '', ['layout' => 'share', 'markdown' => true]);
         }
