@@ -2389,6 +2389,10 @@ body.app-side-open {
 
 .share-panel-head {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 8px;
@@ -2398,6 +2402,21 @@ body.app-side-open {
   font-weight: 700;
   color: #2c3766;
   font-size: 0.85rem;
+}
+
+.share-recent-limit {
+  flex: none;
+  padding: 1px 4px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.share-recent-limit:hover {
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
 .share-panel-body {

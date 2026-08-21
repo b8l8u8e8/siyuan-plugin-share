@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+$tz = (string)(getenv('TZ') ?: 'Asia/Shanghai');
+if (!@date_default_timezone_set($tz)) {
+    @date_default_timezone_set('Asia/Shanghai');
+}
+
 $exampleVersion = null;
 $exampleCentralStatsUrl = null;
 if (file_exists(__DIR__ . '/config.example.php')) {
@@ -8440,8 +8445,16 @@ function render_share_right_rail(array $docs, string $slug, bool $includeRecent 
     $html .= '</div>';
     if ($includeRecent) {
         $html .= '<div class="share-panel share-panel--recent">';
-        $html .= '<div class="share-panel-head"><span class="share-panel-title">最近更新</span></div>';
-        $html .= '<div class="share-panel-body share-recent-body">' . render_share_recent_list($docs, $slug, 5) . '</div>';
+        $html .= '<div class="share-panel-head">';
+        $html .= '<span class="share-panel-title">最近更新</span>';
+        $html .= '<select class="share-recent-limit" data-share-recent-limit aria-label="显示数量">';
+        $html .= '<option value="5" selected>5</option>';
+        $html .= '<option value="10">10</option>';
+        $html .= '<option value="20">20</option>';
+        $html .= '<option value="50">50</option>';
+        $html .= '</select>';
+        $html .= '</div>';
+        $html .= '<div class="share-panel-body share-recent-body">' . render_share_recent_list($docs, $slug, 50) . '</div>';
         $html .= '</div>';
     }
     $html .= '</div>';

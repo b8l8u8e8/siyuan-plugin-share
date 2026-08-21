@@ -6361,6 +6361,38 @@ const initImageViewer = () => {
     window.addEventListener("sps:share-dynamic-ready", triggerHighlight);
   };
 
+  const initShareRecentLimit = () => {
+    const select = document.querySelector("[data-share-recent-limit]");
+    if (!select) return;
+    const body = select.closest(".share-panel")?.querySelector(".share-recent-body");
+    if (!body) return;
+    if (select.dataset.recentLimitBound === "1") return;
+    select.dataset.recentLimitBound = "1";
+    const apply = (count) => {
+      const limit = Math.max(1, Math.min(50, Number(count) || 5));
+      body.querySelectorAll(".share-recent-item").forEach((item, idx) => {
+        item.hidden = idx >= limit;
+      });
+    };
+    let saved = null;
+    try {
+      saved = window.localStorage.getItem("sps-recent-count");
+    } catch {
+      saved = null;
+    }
+    const initial = saved && ["5", "10", "20", "50"].includes(saved) ? saved : "5";
+    select.value = initial;
+    apply(Number(initial));
+    select.addEventListener("change", () => {
+      apply(Number(select.value));
+      try {
+        window.localStorage.setItem("sps-recent-count", select.value);
+      } catch {
+        // ignore
+      }
+    });
+  };
+
   const refreshShareDynamicContent = () => {
     clearFootnoteWindows();
     initShareMarkdownToggle();
@@ -6383,6 +6415,11 @@ const initImageViewer = () => {
       }
       try {
         initShareFootnotePreview();
+      } catch (err) {
+        console.error(err);
+      }
+      try {
+        initShareRecentLimit();
       } catch (err) {
         console.error(err);
       }
