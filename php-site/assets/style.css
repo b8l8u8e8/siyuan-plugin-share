@@ -2398,6 +2398,13 @@ body.app-side-open {
   margin-bottom: 8px;
 }
 
+.share-panel--recent .share-panel-head {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
 .share-panel-title {
   font-weight: 700;
   color: #2c3766;
