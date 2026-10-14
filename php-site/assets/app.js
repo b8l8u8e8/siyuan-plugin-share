@@ -4726,6 +4726,19 @@ const initImageViewer = () => {
     usePlugin(window.markdownitIns);
     usePlugin(window.markdownItAnchor || window.markdownitAnchor, {permalink: false});
     registerCalloutSupport();
+    // SiYuan's table-cell IAL is plain text to Markdown-it; typographer may
+    // turn the attribute's straight quotes into smart quotes during rendering.
+    const applySiYuanTableCellAlignment = (root) => {
+      const alignmentPrefix = /^[ \t]*\{:\s*style\s*=\s*(?:"\s*text-align\s*:\s*(left|center|right)\s*;?\s*"|“\s*text-align\s*:\s*(left|center|right)\s*;?\s*”|'\s*text-align\s*:\s*(left|center|right)\s*;?\s*'|‘\s*text-align\s*:\s*(left|center|right)\s*;?\s*’)\s*\}[ \t]*/i;
+      root.querySelectorAll("table th, table td").forEach((cell) => {
+        const first = cell.firstChild;
+        if (!first || first.nodeType !== 3) return;
+        const match = alignmentPrefix.exec(first.nodeValue || "");
+        if (!match) return;
+        first.nodeValue = first.nodeValue.slice(match[0].length);
+        cell.style.textAlign = (match[1] || match[2] || match[3] || match[4]).toLowerCase();
+      });
+    };
 
     if (typeof window.markdownitContainer === "function") {
       const containers = ["info", "success", "warning", "danger", "tip", "note"];
@@ -5668,6 +5681,7 @@ const initImageViewer = () => {
         if (!target) return;
         const raw = source.value || "";
         target.innerHTML = sanitizeShareHtml(md.render(raw));
+        applySiYuanTableCellAlignment(target);
         renderMindmap(target);
         renderEcharts(target);
         rehydrateEcharts(target);
